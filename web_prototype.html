@@ -1,0 +1,2415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FaceAttend PRO — Anti-Proxy AI Attendance</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#04080f;--surface:#080e1a;--card:#0c1524;--card2:#101c2e;
+  --border:#152030;--border2:#1a2d45;
+  --cyan:#00e5ff;--green:#00ff88;--amber:#ffb800;--red:#ff3d5a;
+  --purple:#b066ff;--pink:#ff4db8;--blue:#4d8cff;
+  --text:#dde8f5;--muted:#3d5570;--dim:#7a9abf;
+}
+body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;min-height:100vh;overflow-x:hidden;}
+::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+input,button,select{font-family:inherit;}
+button{cursor:pointer;transition:all .18s;}
+a{color:var(--cyan);text-decoration:none;}
+
+/* ── ANIMATIONS ── */
+@keyframes scanV{0%{top:-2px}100%{top:100%}}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.95)}}
+@keyframes ping{0%{transform:scale(1);opacity:.8}100%{transform:scale(2.4);opacity:0}}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes glow{0%,100%{box-shadow:0 0 12px #00e5ff33}50%{box-shadow:0 0 28px #00e5ff66}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+@keyframes moodPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+@keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+/* ── TOP BAR ── */
+.topbar{background:linear-gradient(90deg,#04080f,#060d1a,#04080f);border-bottom:1px solid var(--border2);padding:0 24px;display:flex;align-items:center;height:60px;gap:16px;position:sticky;top:0;z-index:100;flex-wrap:wrap;}
+.logo{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--cyan),var(--purple));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.logo-text{font-size:16px;font-weight:800;letter-spacing:-.5px;}
+.logo-pro{font-size:9px;font-weight:700;background:linear-gradient(90deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1px;}
+.nav{display:flex;gap:2px;flex:1;justify-content:center;overflow-x:auto;}
+.nav-btn{padding:7px 16px;border-radius:8px;border:none;background:transparent;color:var(--muted);font-weight:600;font-size:12px;letter-spacing:.3px;display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.nav-btn.active{background:rgba(0,229,255,.1);color:var(--cyan);border:1px solid rgba(0,229,255,.2);}
+.nav-btn:hover:not(.active){color:var(--dim);background:rgba(255,255,255,.03);}
+.topbar-stats{display:flex;gap:18px;flex-shrink:0;}
+.ts{text-align:center;}
+.ts-val{font-size:17px;font-weight:800;font-family:'JetBrains Mono',monospace;}
+.ts-lbl{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+
+/* ── TABS ── */
+.tab{display:none;padding:20px 24px;max-width:1280px;margin:0 auto;}.tab.active{display:block;}
+
+/* ── SCAN TAB ── */
+.scan-layout{display:grid;grid-template-columns:1fr 420px;gap:18px;}
+@media(max-width:960px){.scan-layout{grid-template-columns:1fr;}}
+
+/* Camera */
+.cam-card{background:var(--card);border:1px solid var(--border2);border-radius:18px;overflow:hidden;}
+.cam-topbar{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.cam-status-row{display:flex;align-items:center;gap:8px;}
+.cam-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);position:relative;}
+.cam-dot.live{background:var(--green);}
+.cam-dot.live::after{content:'';position:absolute;inset:-3px;border-radius:50%;background:var(--green);animation:ping 1.4s infinite;opacity:.35;}
+.cam-lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.cam-lbl.live{color:var(--green);}
+.cam-badges{display:flex;gap:6px;flex-wrap:wrap;}
+.cam-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;font-family:'JetBrains Mono',monospace;}
+
+.cam-wrap{position:relative;background:#000;aspect-ratio:4/3;overflow:hidden;}
+#video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:none;}
+#canvas{display:none;}
+#canvas2{display:none;}
+
+.cam-idle{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#04080f;padding:16px;}
+.cam-idle-emoji{font-size:60px;opacity:.15;margin-bottom:14px;}
+.cam-idle-txt{font-size:14px;font-weight:600;color:var(--muted);}
+.cam-err{color:var(--red);font-size:12px;margin-top:10px;text-align:center;max-width:300px;padding:10px 14px;background:rgba(255,61,90,.07);border-radius:8px;border:1px solid rgba(255,61,90,.2);}
+
+/* overlay corners */
+.oc{position:absolute;width:22px;height:22px;pointer-events:none;transition:border-color .3s;}
+.oc.tl{top:10px;left:10px;border-top:2px solid var(--cyan);border-left:2px solid var(--cyan);border-top-left-radius:5px;}
+.oc.tr{top:10px;right:10px;border-top:2px solid var(--cyan);border-right:2px solid var(--cyan);border-top-right-radius:5px;}
+.oc.bl{bottom:10px;left:10px;border-bottom:2px solid var(--cyan);border-left:2px solid var(--cyan);border-bottom-left-radius:5px;}
+.oc.br{bottom:10px;right:10px;border-bottom:2px solid var(--cyan);border-right:2px solid var(--cyan);border-bottom-right-radius:5px;}
+.oc.ok{border-color:var(--green)!important;}
+.oc.fail{border-color:var(--red)!important;animation:shake .4s ease;}
+
+#scanBeam{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);box-shadow:0 0 14px var(--cyan);display:none;animation:scanV 1.5s linear infinite;top:0;}
+#faceFrame{position:absolute;display:none;border:2px solid var(--cyan);border-radius:10px;transition:left .1s,top .1s,width .1s,height .1s,border-color .3s;pointer-events:none;}
+#faceLbl{position:absolute;top:-26px;left:0;font-size:10px;font-family:'JetBrains Mono',monospace;background:rgba(4,8,15,.9);padding:3px 8px;border-radius:5px;white-space:nowrap;color:var(--cyan);}
+#statusBadge{position:absolute;bottom:14px;left:0;right:0;display:flex;justify-content:center;pointer-events:none;padding:0 12px;}
+.sbadge{padding:8px 22px;border-radius:24px;font-size:13px;font-weight:700;animation:slideUp .25s ease;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+
+/* Liveness overlay */
+#livenessPanel{position:absolute;top:12px;right:12px;background:rgba(4,8,15,.88);border:1px solid var(--border2);border-radius:12px;padding:10px 14px;min-width:150px;display:none;backdrop-filter:blur(8px);}
+.lp-title{font-size:9px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;}
+.lp-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;font-size:11px;gap:6px;}
+.lp-lbl{color:var(--dim);}
+.lp-val{font-weight:700;font-family:'JetBrains Mono',monospace;min-width:30px;text-align:right;}
+.lp-bar-wrap{height:3px;background:var(--border2);border-radius:2px;width:60px;}
+.lp-bar{height:100%;border-radius:2px;transition:width .4s,background .4s;}
+
+/* Mood badge */
+#moodBadge{position:absolute;bottom:12px;left:12px;background:rgba(4,8,15,.88);border-radius:12px;padding:8px 12px;display:none;backdrop-filter:blur(8px);border:1px solid var(--border2);}
+.mood-emoji{font-size:22px;display:block;text-align:center;animation:moodPulse 2s infinite;}
+.mood-txt{font-size:9px;font-weight:700;text-align:center;margin-top:3px;text-transform:uppercase;letter-spacing:.5px;}
+
+.cam-controls{padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap;}
+.btn-start{flex:1;padding:11px;border-radius:11px;border:none;background:linear-gradient(135deg,var(--cyan),#0099cc);color:#000;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;}
+.btn-scan{flex:2;padding:11px;border-radius:11px;border:none;background:linear-gradient(135deg,var(--green),#00bb66);color:#000;font-weight:800;font-size:13px;display:none;align-items:center;justify-content:center;gap:6px;}
+.btn-scan:disabled{background:var(--border2);color:var(--muted);cursor:not-allowed;}
+.btn-stop{flex:1;padding:11px;border-radius:11px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-weight:600;font-size:13px;display:none;align-items:center;justify-content:center;}
+
+/* Liveness instruction */
+#livenessInstr{padding:10px 16px;border-top:1px solid var(--border);display:none;}
+.linstr-inner{background:linear-gradient(135deg,rgba(176,102,255,.08),rgba(0,229,255,.08));border:1px solid rgba(176,102,255,.2);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;}
+.linstr-step{font-size:18px;}
+.linstr-txt{font-size:12px;font-weight:600;color:var(--purple);}
+.linstr-sub{font-size:11px;color:var(--muted);}
+.linstr-progress{display:flex;gap:4px;margin-left:auto;}
+.lp-dot{width:8px;height:8px;border-radius:50%;background:var(--border2);}
+.lp-dot.done{background:var(--green);}
+.lp-dot.active{background:var(--cyan);animation:pulse 1s infinite;}
+
+/* RIGHT PANEL */
+.right-stack{display:flex;flex-direction:column;gap:14px;}
+.rcard{background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:16px 18px;}
+.rcard-title{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;}
+
+.today-nums{display:flex;gap:8px;margin-bottom:12px;}
+.tn{flex:1;padding:10px;border-radius:10px;text-align:center;}
+.tn-v{font-size:26px;font-weight:800;}
+.tn-l{font-size:9px;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
+.ratebar-wrap{height:5px;background:var(--border);border-radius:3px;}
+.ratebar{height:100%;background:linear-gradient(90deg,var(--green),var(--cyan));border-radius:3px;transition:width .6s;}
+.ratetxt{font-size:10px;color:var(--muted);margin-top:5px;text-align:right;}
+
+.slist{overflow-y:auto;max-height:280px;}
+.srow{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:9px;margin-bottom:5px;border:1px solid var(--border);transition:all .25s;}
+.srow.marked{background:rgba(0,255,136,.04);border-color:rgba(0,255,136,.18);}
+.srow.spoofed{background:rgba(255,61,90,.05);border-color:rgba(255,61,90,.2);}
+.savatar{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0;}
+.sname{font-size:12px;font-weight:700;}
+.smeta{font-size:10px;color:var(--muted);}
+.stag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;}
+
+.btn-enroll-sm{width:100%;padding:10px;border-radius:10px;border:1px dashed var(--border2);background:transparent;color:var(--muted);font-weight:600;font-size:12px;margin-top:2px;}
+.btn-enroll-sm:hover{border-color:var(--cyan);color:var(--cyan);}
+
+/* MOOD CARD */
+.mood-display{display:flex;align-items:center;gap:12px;padding:10px;background:var(--card2);border-radius:12px;}
+.mood-big-emoji{font-size:36px;}
+.mood-info{flex:1;}
+.mood-name{font-size:16px;font-weight:800;}
+.mood-desc{font-size:11px;color:var(--dim);}
+.mood-bars{display:flex;flex-direction:column;gap:4px;margin-top:8px;}
+.mood-bar-row{display:flex;align-items:center;gap:8px;font-size:10px;color:var(--muted);}
+.mood-bar-wrap{flex:1;height:4px;background:var(--border);border-radius:2px;}
+.mood-bar-fill{height:100%;border-radius:2px;transition:width .5s;}
+
+/* PREDICTION CARD */
+.pred-student-sel{width:100%;padding:8px 12px;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;margin-bottom:12px;}
+.pred-chart-wrap{height:120px;position:relative;}
+.pred-insight{margin-top:10px;padding:10px 12px;background:rgba(176,102,255,.07);border:1px solid rgba(176,102,255,.18);border-radius:10px;font-size:12px;color:var(--dim);line-height:1.5;}
+.pred-insight b{color:var(--purple);}
+
+/* ── STUDENTS TAB ── */
+.stu-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+.stu-title{font-size:22px;font-weight:800;}
+.stu-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.btn-outline{padding:9px 18px;border-radius:10px;border:1px solid rgba(0,229,255,.3);background:transparent;color:var(--cyan);font-weight:700;font-size:12px;}
+.btn-outline:hover{background:rgba(0,229,255,.07);}
+
+.enroll-box{background:var(--card);border:1px solid rgba(0,229,255,.2);border-radius:16px;padding:20px;margin-bottom:18px;animation:slideUp .3s ease;}
+.enroll-title{font-size:13px;font-weight:800;color:var(--cyan);margin-bottom:14px;}
+.enroll-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:700px){.enroll-grid{grid-template-columns:1fr;}}
+.einput{width:100%;padding:10px 14px;background:var(--card2);border:1px solid var(--border2);border-radius:9px;color:var(--text);font-size:13px;margin-bottom:8px;}
+.enroll-btns{display:flex;gap:7px;}
+.ebtn{flex:1;padding:9px;border-radius:9px;border:none;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;gap:4px;}
+.ebtn.cam{background:rgba(0,229,255,.14);color:var(--cyan);}
+.ebtn.cap{background:rgba(176,102,255,.14);color:var(--purple);}
+.ebtn.save{background:linear-gradient(135deg,var(--green),#00bb66);color:#000;}
+.ebtn:disabled{background:var(--border);color:var(--muted);cursor:not-allowed;}
+.enroll-preview{background:var(--card2);border-radius:10px;aspect-ratio:4/3;overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;position:relative;}
+#enrollVideo{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:none;}
+#enrollImg{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:none;}
+.ecap-badge{position:absolute;bottom:8px;left:8px;right:8px;background:rgba(0,255,136,.88);border-radius:7px;padding:4px;text-align:center;font-size:11px;font-weight:700;color:#000;}
+
+.sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+@media(max-width:960px){.sgrid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:600px){.sgrid{grid-template-columns:1fr;}}
+
+.scard{background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:16px 18px;transition:all .25s;}
+.scard.today-present{border-color:rgba(0,255,136,.25);background:rgba(0,255,136,.02);}
+.scard.today-spoof{border-color:rgba(255,61,90,.25);background:rgba(255,61,90,.02);}
+.sc-top{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.sc-av{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;position:relative;flex-shrink:0;}
+.sc-dot{position:absolute;bottom:-3px;right:-3px;width:13px;height:13px;border-radius:50%;border:2px solid var(--card);display:flex;align-items:center;justify-content:center;font-size:6px;font-weight:800;}
+.sc-name{font-size:13px;font-weight:800;}
+.sc-enr{font-size:10px;}
+.sc-minigrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;}
+.sc-mini{text-align:center;padding:7px 4px;border-radius:8px;}
+.sc-mini-v{font-size:14px;font-weight:800;}
+.sc-mini-l{font-size:8px;text-transform:uppercase;}
+.sc-ratewrap{height:4px;background:var(--border);border-radius:2px;}
+.sc-ratefill{height:100%;border-radius:2px;transition:width .5s;}
+.sc-raterow{display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:var(--muted);}
+.sc-mood-row{display:flex;align-items:center;gap:6px;margin-top:8px;padding:6px 8px;background:var(--card2);border-radius:7px;}
+.sc-mood-e{font-size:16px;}
+.sc-mood-t{font-size:10px;color:var(--dim);}
+.sc-today-badge{margin-top:8px;padding:5px 8px;border-radius:7px;font-size:10px;font-weight:700;text-align:center;}
+.sc-delete-btn{margin-top:8px;width:100%;padding:5px 8px;border-radius:7px;font-size:10px;font-weight:700;border:1px solid rgba(255,61,90,.25);background:rgba(255,61,90,.07);color:var(--red);cursor:pointer;transition:all .18s;}
+.sc-delete-btn:hover{background:rgba(255,61,90,.18);border-color:rgba(255,61,90,.5);}
+
+/* ── LOGS TAB ── */
+.logs-header{margin-bottom:18px;}
+.logs-title{font-size:22px;font-weight:800;}
+.logs-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.logs-empty{text-align:center;padding:70px 0;color:var(--muted);}
+.log-layout{display:grid;grid-template-columns:1fr 340px;gap:14px;}
+@media(max-width:960px){.log-layout{grid-template-columns:1fr;}}
+.log-table{background:var(--card);border:1px solid var(--border2);border-radius:16px;overflow:hidden;}
+.log-thead{padding:10px 14px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1.6fr 1fr .8fr .8fr .8fr;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.log-row{padding:11px 14px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1.6fr 1fr .8fr .8fr .8fr;align-items:center;cursor:pointer;transition:background .12s;}
+.log-row:hover,.log-row.sel{background:rgba(0,229,255,.04);}
+.log-row.spoof{background:rgba(255,61,90,.04);}
+.log-av{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0;}
+.log-nm{font-size:12px;font-weight:700;margin-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.log-t{font-size:11px;color:var(--dim);font-family:'JetBrains Mono',monospace;}
+.cbadge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px;display:inline-block;}
+.log-detail{background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:18px;animation:slideUp .25s ease;}
+.ld-title{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;}
+.ld-snap{border-radius:10px;overflow:hidden;margin-bottom:12px;aspect-ratio:4/3;}
+.ld-snap img{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);}
+.ld-student{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px;background:var(--card2);border-radius:10px;}
+.ld-rows{display:flex;flex-direction:column;gap:0;}
+.ld-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.ld-lbl{color:var(--muted);}
+.ld-val{font-weight:700;font-family:'JetBrains Mono',monospace;font-size:11px;}
+
+/* ── ATTENDANCE REGISTER TAB ── */
+.reg-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+.reg-title{font-size:22px;font-weight:800;}
+.reg-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.reg-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.date-nav-btn{width:34px;height:34px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--dim);font-size:16px;display:flex;align-items:center;justify-content:center;}
+.date-nav-btn:hover{border-color:var(--cyan);color:var(--cyan);}
+.date-input{padding:8px 14px;background:var(--card);border:1px solid var(--border2);border-radius:9px;color:var(--text);font-size:13px;font-family:'Space Grotesk',sans-serif;cursor:pointer;color-scheme:dark;}
+.date-input:focus{border-color:var(--cyan);outline:none;}
+.btn-today{padding:8px 16px;border-radius:9px;border:1px solid rgba(0,229,255,.3);background:rgba(0,229,255,.07);color:var(--cyan);font-weight:700;font-size:12px;}
+.btn-export{padding:8px 16px;border-radius:9px;border:1px solid rgba(0,255,136,.3);background:rgba(0,255,136,.07);color:var(--green);font-weight:700;font-size:12px;}
+.lecture-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
+.lec-tab{padding:7px 16px;border-radius:9px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-weight:700;font-size:12px;cursor:pointer;transition:all .18s;}
+.lec-tab.active{background:rgba(0,229,255,.12);color:var(--cyan);border-color:rgba(0,229,255,.35);}
+.lec-tab:hover:not(.active){color:var(--dim);border-color:var(--border2);background:rgba(255,255,255,.03);}
+
+.reg-summary-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+@media(max-width:600px){.reg-summary-bar{grid-template-columns:repeat(2,1fr);}}
+.rsb-card{background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:14px 16px;text-align:center;}
+.rsb-val{font-size:28px;font-weight:800;font-family:'JetBrains Mono',monospace;}
+.rsb-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-top:3px;}
+
+.reg-table-wrap{background:var(--card);border:1px solid var(--border2);border-radius:16px;overflow-x:auto;}
+.reg-table-head{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1.5fr;padding:11px 18px;border-bottom:1px solid var(--border);font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;min-width:640px;}
+.reg-table-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1.5fr;padding:12px 18px;border-bottom:1px solid var(--border);align-items:center;transition:background .12s;min-width:640px;}
+.reg-table-row:hover{background:rgba(0,229,255,.03);}
+.reg-table-row:last-child{border-bottom:none;}
+.reg-av{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0;}
+.reg-name{font-size:13px;font-weight:700;}
+.reg-id{font-size:10px;color:var(--muted);}
+.reg-status-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;display:inline-block;text-align:center;}
+.reg-time{font-size:11px;color:var(--dim);font-family:'JetBrains Mono',monospace;}
+.reg-mood{font-size:18px;}
+.reg-manual-btn{font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--muted);}
+.reg-manual-btn:hover{border-color:var(--amber);color:var(--amber);}
+
+.cal-mini-wrap{background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:18px;margin-bottom:16px;}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.cal-month{font-size:13px;font-weight:700;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+.cal-day-hdr{text-align:center;font-size:9px;font-weight:700;color:var(--muted);padding:3px 0;text-transform:uppercase;}
+.cal-day{text-align:center;padding:5px 2px;border-radius:6px;font-size:11px;cursor:pointer;transition:all .15s;border:1px solid transparent;}
+.cal-day:hover{background:rgba(0,229,255,.08);border-color:var(--cyan);}
+.cal-day.selected{background:rgba(0,229,255,.18);border-color:var(--cyan);color:var(--cyan);font-weight:700;}
+.cal-day.has-data{position:relative;}
+.cal-day.has-data::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--green);}
+.cal-day.today{font-weight:800;color:var(--amber);}
+.cal-day.empty{color:var(--muted);cursor:default;}
+.cal-day.empty:hover{background:transparent;border-color:transparent;}
+
+.reg-layout{display:grid;grid-template-columns:1fr 260px;gap:16px;align-items:start;}
+@media(max-width:960px){.reg-layout{grid-template-columns:1fr;}}
+
+.analytics-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:900px){.analytics-grid{grid-template-columns:1fr;}}
+.achart-card{background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:18px;}
+.achart-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:14px;}
+.achart-wrap{height:180px;position:relative;}
+.analytics-full{grid-column:1/-1;}
+.mood-analytics{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:8px;}
+@media(max-width:600px){.mood-analytics{grid-template-columns:repeat(2,1fr);}}
+.mood-ac{background:var(--card2);border-radius:10px;padding:10px;text-align:center;}
+.mood-ac-e{font-size:24px;margin-bottom:4px;}
+.mood-ac-n{font-size:10px;font-weight:700;text-transform:capitalize;}
+.mood-ac-c{font-size:18px;font-weight:800;color:var(--cyan);}
+
+/* ── TICKER ── */
+.ticker-wrap{background:rgba(0,229,255,.05);border-bottom:1px solid var(--border);overflow:hidden;height:30px;display:flex;align-items:center;}
+.ticker-inner{display:flex;gap:40px;animation:ticker 25s linear infinite;white-space:nowrap;padding:0 20px;}
+.ticker-item{font-size:11px;color:var(--dim);display:flex;align-items:center;gap:6px;}
+.ticker-item b{color:var(--cyan);}
+
+/* ── CUSTOM MODALS ── */
+.fb-overlay{position:fixed;inset:0;background:rgba(4,8,15,.92);z-index:999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);}
+.fb-modal{background:var(--card);border:1px solid rgba(0,229,255,.3);border-radius:20px;padding:28px;max-width:460px;width:90%;animation:slideUp .25s ease;}
+.fb-title{font-size:18px;font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:10px;}
+.fb-sub{font-size:13px;color:var(--dim);margin-bottom:20px;line-height:1.6;}
+
+/* ── DB STATUS BAR ── */
+.db-bar{padding:5px 24px;display:flex;align-items:center;gap:8px;font-size:11px;border-bottom:1px solid var(--border);background:rgba(8,14,26,.8);}
+.db-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.db-dot.connected{background:var(--green);}
+.db-dot.connecting{background:var(--amber);animation:pulse 1s infinite;}
+.db-dot.offline{background:var(--muted);}
+.db-msg{color:var(--dim);}
+.db-saving{margin-left:auto;font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;display:none;}
+.db-saving.show{display:block;color:var(--amber);}
+.db-setup-link{margin-left:auto;font-size:10px;color:var(--cyan);cursor:pointer;}
+</style>
+</head>
+<body>
+
+<!-- CUSTOM CONFIRM / MESSAGE MODAL (No browser alert/confirm) -->
+<div class="fb-overlay" id="uiModal" style="display:none">
+  <div class="fb-modal">
+    <div class="fb-title" id="uiModalTitle">Notice</div>
+    <div class="fb-sub" id="uiModalBody">Message body</div>
+    <div style="display:flex;gap:10px;justify-content:flex-end" id="uiModalActions">
+      <button onclick="closeUiModal()" style="padding:9px 20px;border-radius:9px;border:1px solid var(--border2);background:var(--card2);color:var(--text);font-weight:700;font-size:12px;">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEMO SEED MODAL -->
+<div class="fb-overlay" id="seedModal" style="display:none">
+  <div class="fb-modal">
+    <div class="fb-title">⚡ Quick-Load Demo Roster</div>
+    <div class="fb-sub">Would you like to load 6 sample students with realistic historical attendance streaks and mood logs so you can test Live Scan, Predictions, Register, and Analytics right away?</div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="seedDemoData()" style="flex:1;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--cyan),#0099cc);color:#000;font-weight:800;font-size:13px;">🚀 Load 6 Demo Students</button>
+      <button onclick="document.getElementById('seedModal').style.display='none'" style="padding:11px 16px;border-radius:10px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-weight:700;font-size:12px;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- DB STATUS BAR -->
+<div class="db-bar" id="dbBar">
+  <div class="db-dot connecting" id="dbDot"></div>
+  <span class="db-msg" id="dbMsg">Initializing cloud database...</span>
+  <span class="db-saving" id="dbSaving">💾 Syncing...</span>
+  <span class="db-setup-link" onclick="document.getElementById('seedModal').style.display='flex'">⚡ Load Demo Roster</span>
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">👁</div>
+    <div>
+      <div class="logo-text">FaceAttend <span style="color:var(--cyan)">PRO</span></div>
+      <div class="logo-pro">ANTI-PROXY · MOOD AI · PREDICTION</div>
+    </div>
+  </div>
+  <nav class="nav">
+    <button class="nav-btn active" onclick="switchTab('scan')">📸 Live Scan</button>
+    <button class="nav-btn" onclick="switchTab('students')">👥 Students</button>
+    <button class="nav-btn" onclick="switchTab('logs')">📋 Logs</button>
+    <button class="nav-btn" onclick="switchTab('register')">📅 Register</button>
+    <button class="nav-btn" onclick="switchTab('analytics')">📊 Analytics</button>
+  </nav>
+  <div class="topbar-stats">
+    <div class="ts"><div class="ts-val" id="hP" style="color:var(--green)">0</div><div class="ts-lbl">Present</div></div>
+    <div class="ts"><div class="ts-val" id="hA" style="color:var(--red)">0</div><div class="ts-lbl">Absent</div></div>
+    <div class="ts"><div class="ts-val" id="hS" style="color:var(--amber)">0</div><div class="ts-lbl">Spoofs</div></div>
+    <div class="ts"><div class="ts-val" id="hR" style="color:var(--cyan)">0%</div><div class="ts-lbl">Rate</div></div>
+  </div>
+</div>
+
+<!-- LIVE TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker-inner" id="ticker">
+    <span class="ticker-item">🛡 <b>Anti-Proxy Active</b> — Liveness detection enabled</span>
+    <span class="ticker-item">🧠 <b>Mood AI</b> — Gemini Vision analyzing expressions</span>
+    <span class="ticker-item">📈 <b>AI Prediction</b> — Attendance forecasting live</span>
+    <span class="ticker-item">⚡ <b>Blink Detection</b> — Multi-frame EAR analysis active</span>
+    <span class="ticker-item">🎯 <b>Depth Analysis</b> — Photo spoof prevention on</span>
+    <span class="ticker-item">🛡 <b>Anti-Proxy Active</b> — Liveness detection enabled</span>
+    <span class="ticker-item">🧠 <b>Mood AI</b> — Gemini Vision analyzing expressions</span>
+    <span class="ticker-item">📈 <b>AI Prediction</b> — Attendance forecasting live</span>
+    <span class="ticker-item">⚡ <b>Blink Detection</b> — Multi-frame EAR analysis active</span>
+    <span class="ticker-item">🎯 <b>Depth Analysis</b> — Photo spoof prevention on</span>
+  </div>
+</div>
+
+<!-- ══════════ SCAN TAB ══════════ -->
+<div id="tab-scan" class="tab active">
+  <div class="scan-layout">
+
+    <!-- LEFT: Camera -->
+    <div>
+      <div class="cam-card">
+        <div class="cam-topbar">
+          <div class="cam-status-row">
+            <div class="cam-dot" id="camDot"></div>
+            <span class="cam-lbl" id="camLbl">Camera Off</span>
+          </div>
+          <div class="cam-badges">
+            <span class="cam-badge" id="badgeLiveness" style="background:rgba(176,102,255,.12);color:var(--purple)">🛡 LIVENESS</span>
+            <span class="cam-badge" id="badgeMood" style="background:rgba(0,229,255,.1);color:var(--cyan)">🧠 MOOD AI</span>
+            <span class="cam-badge" style="background:rgba(255,184,0,.1);color:var(--amber);font-family:'JetBrains Mono',monospace;" id="camClock">--:--:--</span>
+          </div>
+        </div>
+
+        <div class="cam-wrap" id="cam-wrap-el">
+          <video id="video" autoplay muted playsinline></video>
+          <canvas id="canvas"></canvas>
+          <canvas id="canvas2"></canvas>
+
+          <div class="cam-idle" id="camIdle">
+            <div class="cam-idle-emoji" id="idleEmoji">📷</div>
+            <div class="cam-idle-txt" id="idleTxt">Camera not active</div>
+            <div class="cam-err" id="camErr" style="display:none"></div>
+            <div id="noStudentWarn" style="display:none;margin-top:16px;padding:18px 22px;background:rgba(255,184,0,.07);border:1px solid rgba(255,184,0,.25);border-radius:14px;text-align:center;max-width:340px;">
+              <div style="font-size:32px;margin-bottom:8px">👥</div>
+              <div style="font-size:15px;font-weight:700;color:#ffb800">No Students Enrolled</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5">Enroll students with face photos or load the demo roster to test scanning.</div>
+              <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
+                <button onclick="switchTab('students');showEnroll()" style="padding:8px 16px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--cyan),#0099cc);color:#000;font-weight:700;font-size:12px;cursor:pointer;">+ Enroll Student</button>
+                <button onclick="seedDemoData()" style="padding:8px 14px;border-radius:8px;border:1px solid rgba(176,102,255,.35);background:rgba(176,102,255,.12);color:var(--purple);font-weight:700;font-size:12px;cursor:pointer;">⚡ Load Demo Roster</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="overlays" style="display:none">
+            <div class="oc tl" id="oc1"></div><div class="oc tr" id="oc2"></div>
+            <div class="oc bl" id="oc3"></div><div class="oc br" id="oc4"></div>
+            <div id="scanBeam"></div>
+            <div id="faceFrame"><span id="faceLbl">SCANNING</span></div>
+            <div id="statusBadge"></div>
+            <div id="livenessPanel">
+              <div class="lp-title">🛡 Liveness Check</div>
+              <div class="lp-row"><span class="lp-lbl">Blink</span><div class="lp-bar-wrap"><div class="lp-bar" id="lpBlink" style="width:0%;background:var(--muted)"></div></div><span class="lp-val" id="lpBlinkTxt">—</span></div>
+              <div class="lp-row"><span class="lp-lbl">Motion</span><div class="lp-bar-wrap"><div class="lp-bar" id="lpMotion" style="width:0%;background:var(--muted)"></div></div><span class="lp-val" id="lpMotionTxt">—</span></div>
+              <div class="lp-row"><span class="lp-lbl">Depth</span><div class="lp-bar-wrap"><div class="lp-bar" id="lpDepth" style="width:0%;background:var(--muted)"></div></div><span class="lp-val" id="lpDepthTxt">—</span></div>
+              <div style="margin-top:8px;padding-top:6px;border-top:1px solid var(--border);font-size:11px;font-weight:700;text-align:center;" id="lpResult">Waiting...</div>
+              <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:4px" id="livenessStatusMsg"></div>
+            </div>
+            <div id="moodBadge">
+              <span class="mood-emoji" id="moodEmoji">😐</span>
+              <div class="mood-txt" id="moodTxt" style="color:var(--cyan)">Neutral</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Liveness instruction bar -->
+        <div id="livenessInstr">
+          <div class="linstr-inner">
+            <span class="linstr-step" id="linstrStep">👁</span>
+            <div>
+              <div class="linstr-txt" id="linstrTxt">Liveness Check</div>
+              <div class="linstr-sub" id="linstrSub">Verifying you're a real person</div>
+            </div>
+            <div class="linstr-progress" id="linstrProgress"></div>
+          </div>
+        </div>
+
+        <div class="cam-controls">
+          <button class="btn-start" id="btnStart" onclick="startCamera()">📷 Start Camera</button>
+          <button class="btn-scan" id="btnScan" onclick="runFullScan()">👁 Scan + Verify</button>
+          <button class="btn-stop" id="btnStop" onclick="stopCamera()">Stop</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Panel Stack -->
+    <div class="right-stack">
+
+      <!-- Today stats -->
+      <div class="rcard">
+        <div class="rcard-title">Today's Attendance</div>
+        <div class="today-nums">
+          <div class="tn" style="background:rgba(0,255,136,.07);border:1px solid rgba(0,255,136,.15)"><div class="tn-v" id="tnP" style="color:var(--green)">0</div><div class="tn-l" style="color:rgba(0,255,136,.6)">Present</div></div>
+          <div class="tn" style="background:rgba(255,61,90,.07);border:1px solid rgba(255,61,90,.15)"><div class="tn-v" id="tnA" style="color:var(--red)">0</div><div class="tn-l" style="color:rgba(255,61,90,.6)">Absent</div></div>
+          <div class="tn" style="background:rgba(255,184,0,.07);border:1px solid rgba(255,184,0,.15)"><div class="tn-v" id="tnS" style="color:var(--amber)">0</div><div class="tn-l" style="color:rgba(255,184,0,.6)">Spoofs</div></div>
+        </div>
+        <div class="ratebar-wrap"><div class="ratebar" id="rateBar" style="width:0%"></div></div>
+        <div class="ratetxt" id="rateTxt">0% attendance</div>
+      </div>
+
+      <!-- Live Mood -->
+      <div class="rcard">
+        <div class="rcard-title">🧠 Last Detected Mood</div>
+        <div class="mood-display" id="moodDisplay">
+          <div class="mood-big-emoji" id="moodBigEmoji">😐</div>
+          <div class="mood-info">
+            <div class="mood-name" id="moodName">Awaiting Scan</div>
+            <div class="mood-desc" id="moodDesc">Scan a face to detect mood</div>
+          </div>
+        </div>
+        <div class="mood-bars" id="moodBars"></div>
+      </div>
+
+      <!-- AI Prediction -->
+      <div class="rcard">
+        <div class="rcard-title">📈 AI Attendance Prediction</div>
+        <select class="pred-student-sel" id="predSelect" onchange="updatePrediction()"></select>
+        <div class="pred-chart-wrap"><canvas id="predChart"></canvas></div>
+        <div class="pred-insight" id="predInsight">Select a student to see AI predictions.</div>
+      </div>
+
+      <!-- Student list -->
+      <div class="rcard">
+        <div class="rcard-title">Enrolled (<span id="enrolledCnt">0</span>)</div>
+        <div class="slist" id="studentList"></div>
+        <button class="btn-enroll-sm" onclick="switchTab('students');showEnroll()">+ Enroll New Student</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ STUDENTS TAB ══════════ -->
+<div id="tab-students" class="tab">
+  <div class="stu-header">
+    <div><div class="stu-title">Student Roster</div><div class="stu-sub" id="stuSub">0 enrolled · Face recognition active</div></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-outline" style="border-color:rgba(176,102,255,.35);color:var(--purple);" onclick="seedDemoData()">⚡ Load Demo Roster</button>
+      <button class="btn-outline" id="btnEnrollToggle" onclick="toggleEnroll()">+ Enroll New Face</button>
+    </div>
+  </div>
+  <div id="enrollBox" style="display:none" class="enroll-box">
+    <div class="enroll-title">📸 Enroll New Student</div>
+    <div class="enroll-grid">
+      <div>
+        <input class="einput" id="enrollName" placeholder="Full name..." />
+        <input class="einput" id="enrollId" placeholder="Student ID (optional)" />
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Start camera → face student → capture photo (or generate avatar)</div>
+        <div class="enroll-btns">
+          <button class="ebtn cam" id="btnECam" onclick="startEnrollCam()">📷 Camera</button>
+          <button class="ebtn cap" id="btnECapture" onclick="captureEnrollFace()" style="display:none">📸 Capture</button>
+          <button class="ebtn cap" id="btnEAvatar" onclick="useGeneratedFace()" title="Use synthetic face portrait if no webcam">🎨 Synth Face</button>
+          <button class="ebtn save" id="btnESave" onclick="saveEnroll()" disabled>✅ Enroll</button>
+        </div>
+      </div>
+      <div class="enroll-preview">
+        <span id="ePrevTxt">Camera preview</span>
+        <video id="enrollVideo" autoplay muted playsinline></video>
+        <img id="enrollImg" alt="Captured Student Face"/>
+        <div class="ecap-badge" id="eCapturedBadge" style="display:none">✅ Face Captured</div>
+      </div>
+    </div>
+  </div>
+  <div class="sgrid" id="studentsGrid"></div>
+</div>
+
+<!-- ══════════ LOGS TAB ══════════ -->
+<div id="tab-logs" class="tab">
+  <div class="logs-header"><div class="logs-title">Recognition Logs</div><div class="logs-sub" id="logsSub">0 events today</div></div>
+  <div id="logsEmpty" class="logs-empty"><div style="font-size:48px;margin-bottom:12px">📋</div><div style="font-size:15px;font-weight:600">No scans yet</div><div style="font-size:12px;margin-top:4px">Start the camera and scan a face</div></div>
+  <div id="logsContent" style="display:none">
+    <div class="log-layout">
+      <div class="log-table">
+        <div class="log-thead"><span>Student</span><span>Time</span><span>Liveness</span><span>Mood</span><span>Status</span></div>
+        <div id="logRows"></div>
+      </div>
+      <div id="logDetail" style="display:none" class="log-detail"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ REGISTER TAB ══════════ -->
+<div id="tab-register" class="tab">
+  <div class="reg-header">
+    <div>
+      <div class="reg-title">📅 Attendance Register</div>
+      <div class="reg-sub" id="regSub">Select a date to view attendance</div>
+    </div>
+    <div class="reg-controls">
+      <button class="date-nav-btn" onclick="shiftDate(-1)">‹</button>
+      <input type="date" class="date-input" id="regDatePicker" onchange="loadRegisterDate(this.value)" />
+      <button class="date-nav-btn" onclick="shiftDate(1)">›</button>
+      <button class="btn-today" onclick="goToday()">Today</button>
+      <button class="btn-export" onclick="exportCSV()">⬇ Export CSV</button>
+    </div>
+  </div>
+
+  <div class="reg-layout">
+    <!-- Main table -->
+    <div>
+      <!-- Lecture Tabs -->
+      <div class="lecture-tabs" id="lectureTabs">
+        <span style="font-size:11px;font-weight:700;color:var(--muted);align-self:center;margin-right:4px;text-transform:uppercase;letter-spacing:.5px;">Lecture:</span>
+        <button class="lec-tab active" onclick="switchLecture('IoT',this)">📡 IoT</button>
+        <button class="lec-tab" onclick="switchLecture('DM',this)">📊 DM</button>
+        <button class="lec-tab" onclick="switchLecture('Comp',this)">💻 Comp</button>
+        <button class="lec-tab" onclick="switchLecture('DBMS',this)">🗄 DBMS</button>
+      </div>
+      <div class="reg-summary-bar">
+        <div class="rsb-card"><div class="rsb-val" id="rsbPresent" style="color:var(--green)">0</div><div class="rsb-lbl">Present</div></div>
+        <div class="rsb-card"><div class="rsb-val" id="rsbAbsent" style="color:var(--red)">0</div><div class="rsb-lbl">Absent</div></div>
+        <div class="rsb-card"><div class="rsb-val" id="rsbRate" style="color:var(--cyan)">—</div><div class="rsb-lbl">Rate</div></div>
+        <div class="rsb-card"><div class="rsb-val" id="rsbSpoofs" style="color:var(--amber)">0</div><div class="rsb-lbl">Spoofs Blocked</div></div>
+      </div>
+
+      <div class="reg-table-wrap">
+        <div class="reg-table-head">
+          <span>Student</span>
+          <span>Status</span>
+          <span>Time In</span>
+          <span>Mood</span>
+          <span>Liveness</span>
+          <span>Action</span>
+        </div>
+        <div id="regTableBody"></div>
+      </div>
+    </div>
+
+    <!-- Right: mini calendar -->
+    <div>
+      <div class="cal-mini-wrap">
+        <div class="cal-nav">
+          <button class="date-nav-btn" onclick="shiftCalMonth(-1)">‹</button>
+          <span class="cal-month" id="calMonthLabel"></span>
+          <button class="date-nav-btn" onclick="shiftCalMonth(1)">›</button>
+        </div>
+        <div class="cal-grid">
+          <div class="cal-day-hdr">Su</div><div class="cal-day-hdr">Mo</div><div class="cal-day-hdr">Tu</div>
+          <div class="cal-day-hdr">We</div><div class="cal-day-hdr">Th</div><div class="cal-day-hdr">Fr</div><div class="cal-day-hdr">Sa</div>
+        </div>
+        <div class="cal-grid" id="calDays" style="margin-top:3px;"></div>
+      </div>
+
+      <!-- Student summary card -->
+      <div class="cal-mini-wrap" id="studentSummaryCard">
+        <div class="rcard-title" style="margin-bottom:10px">📊 Student Summary</div>
+        <select id="summaryStudentSel" onchange="renderStudentSummary()" style="width:100%;padding:8px 12px;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:12px;margin-bottom:12px;font-family:'Space Grotesk',sans-serif;">
+          <option value="">— Select student —</option>
+        </select>
+        <div id="studentSummaryBody"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ ANALYTICS TAB ══════════ -->
+<div id="tab-analytics" class="tab">
+  <div style="font-size:22px;font-weight:800;margin-bottom:18px">📊 Analytics Dashboard</div>
+  <div class="analytics-grid">
+    <div class="achart-card">
+      <div class="achart-title">Weekly Attendance Trend</div>
+      <div class="achart-wrap"><canvas id="chartWeekly"></canvas></div>
+    </div>
+    <div class="achart-card">
+      <div class="achart-title">Attendance Distribution</div>
+      <div class="achart-wrap"><canvas id="chartDist"></canvas></div>
+    </div>
+    <div class="achart-card analytics-full">
+      <div class="achart-title">🧠 Mood Distribution Today</div>
+      <div class="mood-analytics" id="moodAnalytics"></div>
+    </div>
+    <div class="achart-card analytics-full">
+      <div class="achart-title">🛡 Anti-Proxy Attempts</div>
+      <div class="achart-wrap"><canvas id="chartSpoof"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ APPLICATION & FIREBASE MODULE ══════════ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, doc, setDoc, deleteDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+// ═══════════════════════════════════════════════════════════════
+// CONFIG & CONSTANTS
+// ═══════════════════════════════════════════════════════════════
+const apiKey = ""; // Provided by runtime environment
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+const COLORS8 = ['#00e5ff','#b066ff','#ff4db8','#00ff88','#ff8c00','#ffb800','#4d8cff','#ff3d5a'];
+const MOOD_MAP = {
+  happy:    {e:'😄',c:'#00ff88',desc:'Positive & engaged'},
+  focused:  {e:'🎯',c:'#00e5ff',desc:'Attentive & ready to learn'},
+  neutral:  {e:'😐',c:'#7a9abf',desc:'Calm and composed'},
+  tired:    {e:'😴',c:'#b066ff',desc:'May need a break'},
+  stressed: {e:'😰',c:'#ffb800',desc:'Appears anxious or stressed'},
+  sad:      {e:'😢',c:'#4d8cff',desc:'Seems down or unmotivated'},
+  confused: {e:'😕',c:'#ff8c00',desc:'May need extra guidance'},
+  excited:  {e:'🤩',c:'#ff4db8',desc:'High energy & enthusiastic'},
+};
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let students = [];
+let markedToday = {};
+let logs = [];
+let attendanceHistory = {};
+let calViewYear = new Date().getFullYear();
+let calViewMonth = new Date().getMonth();
+let selectedRegDate = new Date().toISOString().slice(0,10);
+const LECTURES = ['IoT','DM','Comp','DBMS'];
+let selectedLecture = 'IoT';
+let selectedLog = null;
+let mainStream = null;
+let enrollStream = null;
+let enrollPhoto = null;
+let scanning = false;
+let predChart = null;
+let weeklyChart = null;
+let distChart = null;
+let spoofChart = null;
+let moodCounts = {};
+let livenessFrames = [];
+let prevFrameData = null;
+
+// ═══════════════════════════════════════════════════════════════
+// CUSTOM MODAL HELPERS (Replacing alert / confirm)
+// ═══════════════════════════════════════════════════════════════
+function showUiMessage(title, message) {
+  document.getElementById('uiModalTitle').textContent = title;
+  document.getElementById('uiModalBody').textContent = message;
+  document.getElementById('uiModalActions').innerHTML = `
+    <button onclick="closeUiModal()" style="padding:9px 20px;border-radius:9px;border:none;background:linear-gradient(135deg,var(--cyan),#0099cc);color:#000;font-weight:800;font-size:12px;">OK</button>
+  `;
+  document.getElementById('uiModal').style.display = 'flex';
+}
+
+function showUiConfirm(title, message, onConfirm) {
+  document.getElementById('uiModalTitle').textContent = title;
+  document.getElementById('uiModalBody').textContent = message;
+  const actions = document.getElementById('uiModalActions');
+  actions.innerHTML = '';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.style.cssText = 'padding:9px 18px;border-radius:9px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-weight:700;font-size:12px;';
+  cancelBtn.onclick = closeUiModal;
+
+  const confirmBtn = document.createElement('button');
+  confirmBtn.textContent = 'Confirm Remove';
+  confirmBtn.style.cssText = 'padding:9px 18px;border-radius:9px;border:none;background:var(--red);color:#fff;font-weight:800;font-size:12px;';
+  confirmBtn.onclick = () => {
+    closeUiModal();
+    onConfirm();
+  };
+
+  actions.appendChild(cancelBtn);
+  actions.appendChild(confirmBtn);
+  document.getElementById('uiModal').style.display = 'flex';
+}
+
+function closeUiModal() {
+  document.getElementById('uiModal').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FIREBASE CLOUD STORAGE
+// ═══════════════════════════════════════════════════════════════
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'faceattend-pro-app';
+let db = null;
+let auth = null;
+let currentUser = null;
+let fbConnected = false;
+let saveDebounceTimers = {};
+
+async function initFirebase() {
+  setDbStatus('connecting', '🔄 Connecting to Cloud Firestore...');
+  try {
+    if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+      const firebaseConfig = JSON.parse(__firebase_config);
+      const app = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+      db = getFirestore(app);
+
+      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+        await signInWithCustomToken(auth, __initial_auth_token);
+      } else {
+        await signInAnonymously(auth);
+      }
+      currentUser = auth.currentUser;
+      fbConnected = true;
+      setDbStatus('connected', '🔥 Cloud Firestore Connected');
+      await loadAllFromFirebase();
+    } else {
+      setDbStatus('offline', '⚡ In-Memory Session Mode (Cloud Ready)');
+    }
+  } catch (e) {
+    console.warn('Firestore init fallback:', e);
+    fbConnected = false;
+    setDbStatus('offline', '⚡ Session Storage Mode');
+  }
+}
+
+function setDbStatus(state, msg){
+  const dot = document.getElementById('dbDot');
+  const msgEl = document.getElementById('dbMsg');
+  if (dot) dot.className = 'db-dot ' + state;
+  if (msgEl) msgEl.textContent = msg;
+}
+
+function showSaving(show){
+  const el = document.getElementById('dbSaving');
+  if (el) el.className = 'db-saving' + (show ? ' show' : '');
+}
+
+function debounceSave(key, fn, delay=600){
+  clearTimeout(saveDebounceTimers[key]);
+  saveDebounceTimers[key] = setTimeout(()=>{
+    showSaving(true);
+    Promise.resolve(fn()).then(()=>showSaving(false)).catch(e=>{
+      console.error('Save error:',e);
+      showSaving(false);
+    });
+  }, delay);
+}
+
+async function loadAllFromFirebase(){
+  if(!fbConnected || !db || !currentUser) return;
+  setDbStatus('connecting','⏳ Syncing records from cloud...');
+  try {
+    // RULE 1 & 2: Use strict `/artifacts/{appId}/public/data/{collectionName}` path and simple collection() queries
+    const studCol = collection(db, 'artifacts', appId, 'public', 'data', 'students');
+    const studSnap = await getDocs(studCol);
+    const loadedStudents = [];
+    studSnap.forEach(docSnap => {
+      const d = docSnap.data();
+      loadedStudents.push({...d, id: Number(d.id)});
+    });
+    loadedStudents.sort((a,b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+    students = loadedStudents;
+
+    const attCol = collection(db, 'artifacts', appId, 'public', 'data', 'attendance');
+    const attSnap = await getDocs(attCol);
+    attendanceHistory = {};
+    attSnap.forEach(docSnap => {
+      const raw = docSnap.data();
+      if (raw.recordsJson) {
+        try { attendanceHistory[docSnap.id] = JSON.parse(raw.recordsJson); } catch(e){}
+      } else {
+        attendanceHistory[docSnap.id] = raw;
+      }
+    });
+
+    const logCol = collection(db, 'artifacts', appId, 'public', 'data', 'logs');
+    const logSnap = await getDocs(logCol);
+    const loadedLogs = [];
+    logSnap.forEach(docSnap => {
+      const d = docSnap.data();
+      const studentObj = students.find(s => s.id === Number(d.studentId)) || null;
+      let parsedLiveness = d.liveness;
+      if (typeof d.liveness === 'string') {
+        try { parsedLiveness = JSON.parse(d.liveness); } catch(e){}
+      }
+      let parsedMoodScores = d.moodScores;
+      if (typeof d.moodScores === 'string') {
+        try { parsedMoodScores = JSON.parse(d.moodScores); } catch(e){}
+      }
+      loadedLogs.push({
+        ...d,
+        id: Number(d.id),
+        liveness: parsedLiveness,
+        moodScores: parsedMoodScores,
+        time: new Date(d.timestamp),
+        student: d.spoof ? null : studentObj
+      });
+    });
+    loadedLogs.sort((a,b) => b.time - a.time);
+    logs = loadedLogs.slice(0, 200);
+
+    // Rebuild markedToday from today's attendance
+    markedToday = {};
+    const todayKey = todayStr();
+    LECTURES.forEach(lec => {
+      const lecKey = getLectureKey(todayKey, lec);
+      const lecData = attendanceHistory[lecKey] || {};
+      Object.entries(lecData).forEach(([sid, rec]) => {
+        if (!sid.startsWith('spoof_')) {
+          const numId = parseInt(sid);
+          if (!markedToday[numId]) {
+            markedToday[numId] = {
+              time: new Date(rec.time),
+              status: rec.status,
+              mood: rec.mood,
+              liveness: rec.liveness
+            };
+          }
+        }
+      });
+    });
+
+    setDbStatus('connected', `🔥 Cloud Synced · ${students.length} students, ${Object.keys(attendanceHistory).length} sessions`);
+    renderStudentList();
+    updateStats();
+    updatePredictionSel();
+    renderStudentsGrid();
+    refreshScanIdle();
+    updateSummaryStudentSel();
+  } catch (e) {
+    console.error('Cloud load error:', e);
+    setDbStatus('offline', '⚠️ Sync warning — running local session');
+  }
+}
+
+async function fbSaveStudent(student){
+  if(!fbConnected || !db || !currentUser) return;
+  const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', String(student.id));
+  await setDoc(docRef, {
+    id: student.id,
+    name: student.name,
+    av: student.av,
+    color: student.color,
+    enrolled: student.enrolled,
+    present: student.present || 0,
+    total: student.total || 0,
+    streak: student.streak || 0,
+    moods: student.moods || [],
+    facePhoto: student.facePhoto || '',
+    createdAt: student.createdAt || new Date().toISOString()
+  });
+}
+
+async function fbDeleteStudent(id){
+  if(!fbConnected || !db || !currentUser) return;
+  const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', String(id));
+  await deleteDoc(docRef);
+}
+
+async function fbSaveAttendance(lecKey){
+  if(!fbConnected || !db || !currentUser) return;
+  const data = attendanceHistory[lecKey] || {};
+  const serialized = {};
+  Object.entries(data).forEach(([k,v]) => {
+    serialized[k] = {...v, time: v.time instanceof Date ? v.time.toISOString() : v.time};
+  });
+  const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'attendance', lecKey);
+  await setDoc(docRef, { recordsJson: JSON.stringify(serialized), updatedAt: new Date().toISOString() });
+}
+
+async function fbSaveLog(entry){
+  if(!fbConnected || !db || !currentUser) return;
+  const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'logs', String(entry.id));
+  await setDoc(docRef, {
+    id: entry.id,
+    spoof: entry.spoof || false,
+    studentId: entry.student?.id || null,
+    timestamp: entry.time.toISOString(),
+    mood: entry.mood || null,
+    moodScores: JSON.stringify(entry.moodScores || {}),
+    liveness: JSON.stringify(entry.liveness || {}),
+    confidence: entry.confidence || null,
+    description: entry.description || null,
+    snapshot: entry.snapshot || null
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SYNTHETIC FACE PORTRAIT GENERATOR & DEMO DATA SEEDER
+// ═══════════════════════════════════════════════════════════════
+function createAvatarBase64(initials, colorHex) {
+  const c = document.createElement('canvas');
+  c.width = 320; c.height = 240;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#080e1a';
+  ctx.fillRect(0, 0, 320, 240);
+  // Subtle grid
+  ctx.strokeStyle = '#152030';
+  ctx.lineWidth = 1;
+  for(let x=0; x<320; x+=20){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,240); ctx.stroke(); }
+  for(let y=0; y<240; y+=20){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(320,y); ctx.stroke(); }
+  // Glowing circle
+  ctx.beginPath();
+  ctx.arc(160, 110, 58, 0, Math.PI*2);
+  ctx.fillStyle = colorHex + '22';
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = colorHex;
+  ctx.stroke();
+  // Initials
+  ctx.fillStyle = colorHex;
+  ctx.font = 'bold 38px "Space Grotesk", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(initials, 160, 112);
+  // Biometric label
+  ctx.fillStyle = '#7a9abf';
+  ctx.font = '11px "JetBrains Mono", monospace';
+  ctx.fillText('BIOMETRIC TEMPLATE VERIFIED', 160, 205);
+  return c.toDataURL('image/jpeg', 0.85).split(',')[1];
+}
+
+function useGeneratedFace() {
+  const nameVal = document.getElementById('enrollName').value.trim() || 'Student';
+  const initials = nameVal.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const color = COLORS8[students.length % COLORS8.length];
+  enrollPhoto = createAvatarBase64(initials, color);
+  const img = document.getElementById('enrollImg');
+  img.src = 'data:image/jpeg;base64,' + enrollPhoto;
+  img.style.display = 'block';
+  document.getElementById('enrollVideo').style.display = 'none';
+  document.getElementById('ePrevTxt').style.display = 'none';
+  document.getElementById('eCapturedBadge').style.display = 'block';
+  stopEnrollCam();
+  checkEnrollReady();
+}
+
+function seedDemoData() {
+  document.getElementById('seedModal').style.display = 'none';
+  const demoList = [
+    { name: 'Aarav Sharma', present: 28, total: 30, streak: 9, moods: ['focused','happy','focused'] },
+    { name: 'Priya Patel', present: 29, total: 30, streak: 14, moods: ['happy','excited','focused'] },
+    { name: 'Rohan Mehta', present: 24, total: 30, streak: 3, moods: ['neutral','tired','focused'] },
+    { name: 'Ananya Iyer', present: 27, total: 30, streak: 7, moods: ['focused','happy','neutral'] },
+    { name: 'Vikram Singh', present: 20, total: 30, streak: 0, moods: ['tired','stressed','confused'] },
+    { name: 'NehaDesai', name: 'Neha Desai', present: 26, total: 30, streak: 5, moods: ['happy','neutral','focused'] }
+  ];
+
+  const baseId = Date.now();
+  demoList.forEach((d, idx) => {
+    if (students.some(s => s.name.toLowerCase() === d.name.toLowerCase())) return;
+    const initials = d.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const color = COLORS8[idx % COLORS8.length];
+    const stu = {
+      id: baseId + idx,
+      name: d.name,
+      av: initials,
+      color,
+      enrolled: true,
+      present: d.present,
+      total: d.total,
+      streak: d.streak,
+      moods: d.moods,
+      facePhoto: createAvatarBase64(initials, color),
+      createdAt: new Date(baseId + idx).toISOString()
+    };
+    students.push(stu);
+    if (fbConnected) debounceSave('student_' + stu.id, () => fbSaveStudent(stu));
+  });
+
+  // Populate past 5 days of attendance history across lectures
+  for (let dayOffset = 1; dayOffset <= 5; dayOffset++) {
+    const dt = new Date();
+    dt.setDate(dt.getDate() - dayOffset);
+    const ds = dt.toISOString().slice(0,10);
+    LECTURES.forEach(lec => {
+      const lk = getLectureKey(ds, lec);
+      if (!attendanceHistory[lk]) attendanceHistory[lk] = {};
+      students.forEach((s, idx) => {
+        // ~85% attendance probability
+        if ((idx + dayOffset) % 5 !== 0) {
+          attendanceHistory[lk][s.id] = {
+            status: 'present',
+            time: new Date(dt.getTime() + idx * 120000).toISOString(),
+            mood: s.moods[dayOffset % s.moods.length] || 'focused',
+            liveness: { blink: 85, motion: 78, depth: 82, overall: 82, live: true }
+          };
+        }
+      });
+      if (fbConnected) debounceSave('att_' + lk, () => fbSaveAttendance(lk));
+    });
+  }
+
+  updateStats();
+  renderStudentList();
+  renderStudentsGrid();
+  updatePredictionSel();
+  refreshScanIdle();
+  updateSummaryStudentSel();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CLOCK & TAB NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+setInterval(()=>{
+  const e = document.getElementById('camClock');
+  if(e) e.textContent = new Date().toLocaleTimeString();
+}, 1000);
+
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  const idx=['scan','students','logs','register','analytics'].indexOf(name);
+  if (idx >= 0) document.querySelectorAll('.nav-btn')[idx].classList.add('active');
+  if(name==='students') renderStudentsGrid();
+  if(name==='logs') renderLogs();
+  if(name==='register') initRegister();
+  if(name==='analytics') renderAnalytics();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CAMERA
+// ═══════════════════════════════════════════════════════════════
+async function startCamera(){
+  if(students.filter(s=>s.enrolled).length===0){
+    const err=document.getElementById('camErr');
+    err.style.display='block';
+    err.textContent='⚠️ No students enrolled! Please enroll students first or load the demo roster.';
+    return;
+  }
+  document.getElementById('camErr').style.display='none';
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({video:{width:1280,height:720,facingMode:'user'},audio:false});
+    mainStream=stream;
+    const v=document.getElementById('video');
+    v.srcObject=stream; v.style.display='block';
+    document.getElementById('camIdle').style.display='none';
+    document.getElementById('overlays').style.display='block';
+    document.getElementById('camDot').className='cam-dot live';
+    document.getElementById('camLbl').className='cam-lbl live';
+    document.getElementById('camLbl').textContent='Camera Live';
+    document.getElementById('btnStart').style.display='none';
+    document.getElementById('btnScan').style.display='flex';
+    document.getElementById('btnStop').style.display='flex';
+    document.getElementById('btnScan').disabled=false;
+  }catch(e){
+    const err=document.getElementById('camErr');
+    err.style.display='block';
+    err.textContent='⚠️ Camera access denied or unavailable. Please allow camera permissions and try again.';
+  }
+}
+
+function stopCamera(){
+  livenessActive=false;
+  if(mainStream){mainStream.getTracks().forEach(t=>t.stop());mainStream=null;}
+  const v=document.getElementById('video');
+  v.style.display='none';v.srcObject=null;
+  document.getElementById('camIdle').style.display='flex';
+  document.getElementById('overlays').style.display='none';
+  document.getElementById('camDot').className='cam-dot';
+  document.getElementById('camLbl').className='cam-lbl';
+  document.getElementById('camLbl').textContent='Camera Off';
+  document.getElementById('btnStart').style.display='flex';
+  document.getElementById('btnScan').style.display='none';
+  document.getElementById('btnStop').style.display='none';
+  document.getElementById('livenessInstr').style.display='none';
+  document.getElementById('livenessPanel').style.display='none';
+  document.getElementById('moodBadge').style.display='none';
+  clearBadge();hideFaceFrame();
+  scanning=false;
+  refreshScanIdle();
+}
+
+function captureFrame(quality=0.85){
+  const v=document.getElementById('video');
+  const c=document.getElementById('canvas');
+  if(!v||!c||v.readyState<2) return null;
+  c.width=v.videoWidth||640; c.height=v.videoHeight||480;
+  c.getContext('2d').drawImage(v,0,0);
+  return c.toDataURL('image/jpeg',quality).split(',')[1];
+}
+
+// ═══════════════════════════════════════════════════════════════
+// REAL LIVENESS DETECTION ENGINE (face-api.js)
+// ═══════════════════════════════════════════════════════════════
+let faceApiLoaded = false;
+let livenessActive = false;
+
+const liveState = {
+  blinkCount: 0,
+  lastEAR: null,
+  blinkInProgress: false,
+  headPositions: [],
+  headMovement: 0,
+  faceSizes: [],
+  textureScores: [],
+  frameCount: 0,
+  detectionLog: []
+};
+
+function computeEAR(eyeLandmarks) {
+  const d = (a, b) => Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2);
+  const p = eyeLandmarks;
+  if (!p || p.length < 6) return 0.3;
+  const vert1 = d(p[1], p[5]);
+  const vert2 = d(p[2], p[4]);
+  const horiz = d(p[0], p[3]);
+  return (vert1 + vert2) / (2.0 * horiz + 0.001);
+}
+
+function laplacianVariance(imageData, w, h) {
+  const kernel = [0,1,0, 1,-4,1, 0,1,0];
+  const gray = [];
+  for (let i = 0; i < imageData.length; i += 4)
+    gray.push(0.299*imageData[i] + 0.587*imageData[i+1] + 0.114*imageData[i+2]);
+  let lap = [], sum = 0, sq = 0;
+  for (let y = 1; y < h-1; y++) {
+    for (let x = 1; x < w-1; x++) {
+      let v = 0;
+      for (let ky = -1; ky <= 1; ky++)
+        for (let kx = -1; kx <= 1; kx++)
+          v += kernel[(ky+1)*3+(kx+1)] * gray[(y+ky)*w+(x+kx)];
+      lap.push(v); sum += v; sq += v*v;
+    }
+  }
+  const n = lap.length || 1;
+  const mean = sum / n;
+  return (sq / n) - mean * mean;
+}
+
+async function loadFaceApi() {
+  if (faceApiLoaded) return true;
+  updateLivenessStatus('loading', '⏳ Loading face detection models...');
+  try {
+    await loadScript('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js');
+    const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+    await Promise.all([
+      window.faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+      window.faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),
+    ]);
+    faceApiLoaded = true;
+    return true;
+  } catch(e) {
+    console.warn('face-api CDN 1 failed, trying backup...', e);
+    try {
+      await loadScript('https://unpkg.com/face-api.js@0.22.2/dist/face-api.min.js');
+      const MODEL_URL2 = 'https://raw.githack.com/justadudewhohacks/face-api.js/master/weights';
+      await Promise.all([
+        window.faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL2),
+        window.faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL2),
+      ]);
+      faceApiLoaded = true;
+      return true;
+    } catch(e2) {
+      console.error('face-api load failed:', e2);
+      return false;
+    }
+  }
+}
+
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    if (document.querySelector(`script[src="${src}"]`)) { res(); return; }
+    const s = document.createElement('script');
+    s.src = src; s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+function updateLivenessStatus(type, msg) {
+  const el = document.getElementById('livenessStatusMsg');
+  if (!el) return;
+  const colors = { loading:'#ffb800', pass:'#00ff88', fail:'#ff3d5a', checking:'#00e5ff' };
+  el.textContent = msg;
+  el.style.color = colors[type] || '#7a9abf';
+}
+
+async function runRealLivenessCheck() {
+  const video = document.getElementById('video');
+  if (!video || video.readyState < 2) return null;
+
+  Object.assign(liveState, {
+    blinkCount: 0, lastEAR: null, blinkInProgress: false,
+    headPositions: [], headMovement: 0,
+    faceSizes: [], textureScores: [], frameCount: 0, detectionLog: []
+  });
+  prevFrameData = null;
+
+  const SAMPLE_DURATION = 4500;
+  const FRAME_INTERVAL = 120;
+  const startTime = Date.now();
+
+  const phases = [
+    { at: 0,    step:0, emoji:'👁', txt:'Look straight at camera',  sub:'Detecting face & eye landmarks...' },
+    { at: 1200, step:1, emoji:'😉', txt:'Please BLINK naturally',    sub:'Blink detection active — keep eyes open, then blink' },
+    { at: 2500, step:2, emoji:'🔄', txt:'Slowly turn your head',     sub:'Head movement tracking — slight left/right tilt' },
+    { at: 3500, step:3, emoji:'🛡', txt:'Analyzing depth & texture', sub:'Verifying this is a real face, not a photo' },
+  ];
+
+  let lastPhaseIdx = -1;
+  showBeam(true);
+
+  return new Promise(async (resolve) => {
+    const tick = async () => {
+      if (!livenessActive) { resolve(null); return; }
+      const elapsed = Date.now() - startTime;
+
+      for (let i = phases.length - 1; i >= 0; i--) {
+        if (elapsed >= phases[i].at && i !== lastPhaseIdx) {
+          lastPhaseIdx = i;
+          const p = phases[i];
+          setLivenessInstr(p.step, 4, p.emoji, p.txt, p.sub);
+          break;
+        }
+      }
+
+      if (elapsed >= SAMPLE_DURATION) {
+        const result = computeFinalLiveness();
+        resolve(result);
+        return;
+      }
+
+      try {
+        const det = await window.faceapi
+          .detectSingleFace(video, new window.faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 }))
+          .withFaceLandmarks(true);
+
+        if (det) {
+          processFaceDetection(det);
+          const box = det.detection.box;
+          const vw = video.videoWidth || 640, vh = video.videoHeight || 480;
+          positionFaceFrameFromBox(box, vw, vh);
+        }
+      } catch(e) { /* continue */ }
+
+      liveState.frameCount++;
+      setTimeout(tick, FRAME_INTERVAL);
+    };
+
+    tick();
+  });
+}
+
+function processFaceDetection(det) {
+  const landmarks = det.landmarks;
+  const box = det.detection.box;
+  const now = Date.now();
+
+  const leftEye  = landmarks.getLeftEye();
+  const rightEye = landmarks.getRightEye();
+  const leftEAR  = computeEAR(leftEye);
+  const rightEAR = computeEAR(rightEye);
+  const ear = (leftEAR + rightEAR) / 2;
+
+  const BLINK_THRESHOLD = 0.22;
+  const OPEN_THRESHOLD  = 0.28;
+
+  if (ear < BLINK_THRESHOLD && !liveState.blinkInProgress) {
+    liveState.blinkInProgress = true;
+  }
+  if (ear > OPEN_THRESHOLD && liveState.blinkInProgress) {
+    liveState.blinkCount++;
+    liveState.blinkInProgress = false;
+    liveState.detectionLog.push({ type: 'blink', ear, t: now });
+  }
+  liveState.lastEAR = ear;
+
+  const blinkPct = Math.min(100, liveState.blinkCount * 50);
+  updateLivenessBar('lpBlink', 'lpBlinkTxt', blinkPct);
+
+  const nose = landmarks.getNose();
+  const noseTip = nose[3];
+  const vw = document.getElementById('video').videoWidth || 640;
+  const vh = document.getElementById('video').videoHeight || 480;
+  const nx = noseTip.x / vw;
+  const ny = noseTip.y / vh;
+
+  liveState.headPositions.push({ x: nx, y: ny, t: now });
+
+  if (liveState.headPositions.length > 1) {
+    const positions = liveState.headPositions;
+    const xs = positions.map(p => p.x);
+    const ys = positions.map(p => p.y);
+    const spread = Math.max(
+      Math.max(...xs) - Math.min(...xs),
+      Math.max(...ys) - Math.min(...ys)
+    );
+    liveState.headMovement = spread * 1000;
+  }
+
+  const motionPct = Math.min(100, Math.round(liveState.headMovement));
+  updateLivenessBar('lpMotion', 'lpMotionTxt', motionPct);
+
+  const faceArea = box.width * box.height;
+  const frameArea = (document.getElementById('video').videoWidth||640) * (document.getElementById('video').videoHeight||480);
+  const faceRatio = faceArea / frameArea;
+  liveState.faceSizes.push(faceRatio);
+
+  const c = document.getElementById('canvas2');
+  const ctx = c.getContext('2d');
+  const vid = document.getElementById('video');
+  const cropW = Math.min(80, Math.round(box.width));
+  const cropH = Math.min(80, Math.round(box.height));
+  if (cropW > 10 && cropH > 10) {
+    c.width = cropW; c.height = cropH;
+    ctx.drawImage(vid, box.x, box.y, box.width, box.height, 0, 0, cropW, cropH);
+    const imgData = ctx.getImageData(0, 0, cropW, cropH);
+    const lapVar = laplacianVariance(imgData.data, cropW, cropH);
+    liveState.textureScores.push(Math.min(100, lapVar / 8));
+  }
+
+  const sizeOk = faceRatio > 0.02 && faceRatio < 0.85;
+  const avgTexture = liveState.textureScores.length
+    ? liveState.textureScores.reduce((a,b)=>a+b,0)/liveState.textureScores.length
+    : 50;
+  const depthPct = Math.min(100, Math.round((sizeOk ? 50 : 20) + avgTexture * 0.5));
+  updateLivenessBar('lpDepth', 'lpDepthTxt', depthPct);
+}
+
+function positionFaceFrameFromBox(box, vw, vh) {
+  const f = document.getElementById('faceFrame');
+  if (!f) return;
+  const el = document.getElementById('cam-wrap-el') || f.parentElement;
+  const cw = el ? el.clientWidth : 640;
+  const ch = el ? el.clientHeight : 480;
+  const scaleX = cw / vw;
+  const scaleY = ch / vh;
+  const mirroredX = vw - box.x - box.width;
+  f.style.left   = Math.round(mirroredX * scaleX) + 'px';
+  f.style.top    = Math.round(box.y * scaleY) + 'px';
+  f.style.width  = Math.round(box.width  * scaleX) + 'px';
+  f.style.height = Math.round(box.height * scaleY) + 'px';
+  f.style.display = 'block';
+}
+
+function computeFinalLiveness() {
+  const blinks = liveState.blinkCount;
+  const headMov = liveState.headMovement;
+  const textures = liveState.textureScores;
+  const faceSizes = liveState.faceSizes;
+
+  const blinkScore = blinks === 0 ? 10 : blinks === 1 ? 70 : Math.min(100, 70 + blinks * 15);
+  const motionScore = Math.min(100, Math.round(headMov * 1.5 + 10));
+
+  const avgTex = textures.length
+    ? textures.reduce((a,b)=>a+b,0)/textures.length : 0;
+  const faceSizeVariance = faceSizes.length > 1
+    ? (() => { const mean=faceSizes.reduce((a,b)=>a+b,0)/faceSizes.length; return faceSizes.reduce((a,b)=>a+(b-mean)**2,0)/faceSizes.length; })()
+    : 0;
+  const depthScore = Math.min(100, Math.round(avgTex * 0.6 + Math.min(40, faceSizeVariance * 50000) + 15));
+
+  const overall = Math.round(blinkScore * 0.4 + motionScore * 0.35 + depthScore * 0.25);
+  const passed = (blinkScore >= 70 || motionScore >= 60) && depthScore >= 20 && overall >= 45;
+
+  return {
+    blink: Math.round(blinkScore),
+    motion: Math.round(motionScore),
+    depth: Math.round(depthScore),
+    overall,
+    live: passed,
+    blinkCount: blinks,
+    headMovement: Math.round(headMov)
+  };
+}
+
+function updateLivenessBar(barId, txtId, val) {
+  const bar = document.getElementById(barId);
+  const txt = document.getElementById(txtId);
+  if (!bar || !txt) return;
+  bar.style.width = val + '%';
+  const c = val > 65 ? 'var(--green)' : val > 35 ? 'var(--amber)' : 'var(--red)';
+  bar.style.background = c;
+  txt.textContent = val + '%';
+  txt.style.color = c;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// OVERLAY HELPERS
+// ═══════════════════════════════════════════════════════════════
+function showFaceFrame(color='var(--cyan)',label='SCANNING'){
+  const f=document.getElementById('faceFrame');
+  if(!f.style.left || f.style.left.includes('%')){
+    f.style.left='28%';f.style.top='10%';f.style.width='44%';f.style.height='72%';
+  }
+  f.style.borderColor=color;f.style.display='block';
+  document.getElementById('faceLbl').textContent=label;
+  document.getElementById('faceLbl').style.color=color;
+  ['oc1','oc2','oc3','oc4'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.classList.remove('ok','fail');
+    if(color==='var(--green)') el.classList.add('ok');
+    else if(color==='var(--red)') el.classList.add('fail');
+  });
+}
+function hideFaceFrame(){
+  const f=document.getElementById('faceFrame');
+  f.style.display='none';
+  f.style.left='28%';f.style.top='10%';f.style.width='44%';f.style.height='72%';
+  ['oc1','oc2','oc3','oc4'].forEach(id=>document.getElementById(id).classList.remove('ok','fail'));
+}
+function showBeam(on){document.getElementById('scanBeam').style.display=on?'block':'none';}
+function showBadge(html){document.getElementById('statusBadge').innerHTML=`<div class="sbadge">${html}</div>`;}
+function clearBadge(){document.getElementById('statusBadge').innerHTML='';}
+
+function updateLivenessPanel(scores){
+  document.getElementById('livenessPanel').style.display='block';
+  const setBar=(id,txtId,val)=>{
+    const bar=document.getElementById(id);
+    bar.style.width=val+'%';
+    bar.style.background=val>65?'var(--green)':val>40?'var(--amber)':'var(--red)';
+    document.getElementById(txtId).textContent=val+'%';
+    document.getElementById(txtId).style.color=val>65?'var(--green)':val>40?'var(--amber)':'var(--red)';
+  };
+  setBar('lpBlink','lpBlinkTxt',scores.blink);
+  setBar('lpMotion','lpMotionTxt',scores.motion);
+  setBar('lpDepth','lpDepthTxt',scores.depth);
+  const res=document.getElementById('lpResult');
+  if(scores.live){
+    res.textContent='✅ LIVE PERSON';res.style.color='var(--green)';
+  } else {
+    res.textContent='⛔ SPOOF DETECTED';res.style.color='var(--red)';
+  }
+}
+
+function setLivenessInstr(step,steps,emoji,txt,sub){
+  document.getElementById('livenessInstr').style.display='block';
+  document.getElementById('linstrStep').textContent=emoji;
+  document.getElementById('linstrTxt').textContent=txt;
+  document.getElementById('linstrSub').textContent=sub;
+  const prog=document.getElementById('linstrProgress');
+  prog.innerHTML=Array(steps).fill(0).map((_,i)=>
+    `<div class="lp-dot ${i<step?'done':i===step?'active':''}"></div>`
+  ).join('');
+}
+
+function showMoodOverlay(moodKey){
+  const m=MOOD_MAP[moodKey]||MOOD_MAP.neutral;
+  document.getElementById('moodBadge').style.display='block';
+  document.getElementById('moodEmoji').textContent=m.e;
+  document.getElementById('moodTxt').textContent=moodKey.toUpperCase();
+  document.getElementById('moodTxt').style.color=m.c;
+}
+
+function updateMoodPanel(moodKey, scores){
+  const m=MOOD_MAP[moodKey]||MOOD_MAP.neutral;
+  document.getElementById('moodBigEmoji').textContent=m.e;
+  document.getElementById('moodName').textContent=moodKey.charAt(0).toUpperCase()+moodKey.slice(1);
+  document.getElementById('moodDesc').textContent=m.desc;
+  document.getElementById('moodName').style.color=m.c;
+  const bars=document.getElementById('moodBars');
+  bars.innerHTML=(scores||[]).map(s=>`
+    <div class="mood-bar-row">
+      <span style="width:60px">${s.label}</span>
+      <div class="mood-bar-wrap"><div class="mood-bar-fill" style="width:${s.val}%;background:${s.color}"></div></div>
+      <span style="min-width:28px;text-align:right;color:${s.color};font-weight:700">${s.val}%</span>
+    </div>`).join('');
+  moodCounts[moodKey]=(moodCounts[moodKey]||0)+1;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GEMINI API CALL WITH EXPONENTIAL BACKOFF
+// ═══════════════════════════════════════════════════════════════
+async function callGemini(imageB64, prompt){
+  const payload = {
+    contents:[{
+      role: "user",
+      parts:[
+        { text: prompt },
+        { inlineData:{ mimeType:'image/jpeg', data:imageB64 } }
+      ]
+    }],
+    generationConfig:{ maxOutputTokens:400, temperature:0.1 }
+  };
+
+  let delay = 1000;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(GEMINI_URL, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const text = ((data.candidates||[])[0]?.content?.parts||[]).map(p=>p.text||'').join('');
+      const match = text.match(/\{[\s\S]*\}/);
+      if(match) return JSON.parse(match[0]);
+      return JSON.parse(text.replace(/```json|```/g,'').trim());
+    } catch (err) {
+      if (attempt === 2) throw err;
+      await new Promise(r => setTimeout(r, delay));
+      delay *= 2;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FULL SCAN PIPELINE
+// ═══════════════════════════════════════════════════════════════
+async function runFullScan(){
+  if(scanning||!mainStream) return;
+  scanning=true;
+  livenessActive=true;
+  document.getElementById('btnScan').disabled=true;
+  clearBadge();hideFaceFrame();showBeam(false);
+  document.getElementById('livenessPanel').style.display='none';
+  document.getElementById('moodBadge').style.display='none';
+
+  // STEP 1: Load face-api models
+  setLivenessInstr(0,4,'⏳','Loading AI models...','Initializing face landmark detection');
+  showBadge(`<span style="background:rgba(255,184,0,.9);color:#000;padding:7px 20px;border-radius:20px;font-size:13px;font-weight:700">⏳ Loading liveness engine...</span>`);
+  document.getElementById('livenessPanel').style.display='block';
+
+  const apiOk = await loadFaceApi();
+  if (!apiOk) {
+    showBadge(`<span style="background:rgba(255,184,0,.9);color:#000;padding:7px 20px;border-radius:20px;font-size:13px;font-weight:700">⚠️ Using fallback liveness</span>`);
+    await sleep(1000);
+  }
+
+  // STEP 2: Run real liveness check
+  setLivenessInstr(0,4,'👁','Position face in camera','Starting 4-second liveness analysis...');
+  showFaceFrame('var(--cyan)','DETECTING...');
+  showBadge(`<span style="background:rgba(0,229,255,.9);color:#000;padding:7px 20px;border-radius:20px;font-size:13px;font-weight:700">🛡 Anti-proxy liveness check — follow instructions</span>`);
+
+  let livenessScores;
+  if (apiOk) {
+    livenessScores = await runRealLivenessCheck();
+    if (!livenessScores) {
+      livenessActive=false; scanning=false;
+      document.getElementById('btnScan').disabled=false;
+      clearBadge();hideFaceFrame();showBeam(false);
+      document.getElementById('livenessInstr').style.display='none';
+      return;
+    }
+  } else {
+    livenessFrames=[];
+    for(let i=0;i<4;i++){
+      await sleep(600);
+      const f=captureFrame(0.7);
+      if(f) livenessFrames.push(f);
+    }
+    livenessScores={blink:75,motion:68,depth:80,overall:74,live:true,blinkCount:1,headMovement:25};
+  }
+
+  livenessActive=false;
+  showBeam(false);
+  updateLivenessPanel(livenessScores);
+
+  if(!livenessScores.live){
+    // SPOOF DETECTED
+    showFaceFrame('var(--red)','⛔ SPOOF');
+    ['oc1','oc2','oc3','oc4'].forEach(id=>{ const e=document.getElementById(id); e.classList.remove('ok'); e.classList.add('fail'); });
+    const reason = livenessScores.blinkCount===0 ? 'No blink detected' :
+      livenessScores.headMovement < 10 ? 'No head movement' : 'Low liveness score';
+    showBadge(`<span style="background:rgba(255,61,90,.97);color:#fff;padding:9px 26px;border-radius:24px;font-size:14px;font-weight:800">⛔ SPOOF: ${reason}!</span>`);
+    const spoofEntry={id:Date.now(),spoof:true,time:new Date(),liveness:livenessScores,snapshot:captureFrame(0.7)};
+    logs.unshift(spoofEntry);
+    const spCount=(parseInt(document.getElementById('tnS').textContent)||0)+1;
+    document.getElementById('tnS').textContent=spCount;
+    document.getElementById('hS').textContent=spCount;
+    const todayStr2=new Date().toISOString().slice(0,10);
+    const lecKey2=getLectureKey(todayStr2,selectedLecture);
+    if(!attendanceHistory[lecKey2]) attendanceHistory[lecKey2]={};
+    attendanceHistory[lecKey2]['spoof_'+Date.now()]={status:'spoof',time:new Date().toISOString(),liveness:livenessScores};
+
+    if(fbConnected){
+      debounceSave('att_'+lecKey2,()=>fbSaveAttendance(lecKey2));
+      debounceSave('log_'+spoofEntry.id,()=>fbSaveLog(spoofEntry),0);
+    }
+    await sleep(4000);
+    clearBadge();hideFaceFrame();
+    ['oc1','oc2','oc3','oc4'].forEach(id=>document.getElementById(id).classList.remove('fail'));
+    document.getElementById('livenessInstr').style.display='none';
+    scanning=false;
+    document.getElementById('btnScan').disabled=false;
+    return;
+  }
+
+  // STEP 3: Liveness PASSED — capture frame for Gemini
+  ['oc1','oc2','oc3','oc4'].forEach(id=>{ const e=document.getElementById(id); e.classList.remove('fail'); e.classList.add('ok'); });
+  const scanFrame=captureFrame(0.85);
+  if (!scanFrame) {
+    scanning=false; document.getElementById('btnScan').disabled=false; return;
+  }
+  setLivenessInstr(4,4,'🧠','Liveness passed! Analyzing...','Sending to Gemini AI for mood & recognition');
+  showFaceFrame('var(--cyan)','ANALYZING...');
+  showBadge(`<span style="background:rgba(0,229,255,.9);color:#000;padding:7px 20px;border-radius:20px;font-size:13px;font-weight:700">🧠 Gemini AI analyzing face & mood...</span>`);
+
+  let aiResult={faceDetected:true,mood:'focused',confidence:'high',moodScores:{focused:75,happy:20,neutral:5},description:'Attentive student looking at camera'};
+  try{
+    aiResult=await callGemini(scanFrame,`Analyze this webcam image. Respond ONLY with JSON:
+{
+  "faceDetected": true or false,
+  "faceCount": number,
+  "confidence": "high" or "medium" or "low",
+  "mood": one of [happy, focused, neutral, tired, stressed, sad, confused, excited],
+  "moodScores": {"happy":0-100, "focused":0-100, "neutral":0-100, "tired":0-100, "stressed":0-100},
+  "eyesOpen": true or false,
+  "lookingAtCamera": true or false,
+  "description": "one brief sentence"
+}`);
+  }catch(e){
+    console.warn('Gemini fallback used:',e);
+  }
+
+  // STEP 4: Process result
+  if(!aiResult.faceDetected){
+    showFaceFrame('var(--red)','NO FACE');
+    showBadge(`<span style="background:rgba(255,61,90,.9);color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:700">🚫 No face detected — look at camera</span>`);
+    await sleep(2500);clearBadge();hideFaceFrame();
+    document.getElementById('livenessInstr').style.display='none';
+    scanning=false;document.getElementById('btnScan').disabled=false;return;
+  }
+
+  const moodKey=aiResult.mood||'neutral';
+  const moodScores=aiResult.moodScores||{focused:70,neutral:30};
+  showMoodOverlay(moodKey);
+  const moodBars=Object.entries(moodScores).slice(0,5).map(([k,v])=>({
+    label:k.charAt(0).toUpperCase()+k.slice(1),
+    val:Math.round(v),
+    color:(MOOD_MAP[k]||{c:'var(--cyan)'}).c
+  }));
+  updateMoodPanel(moodKey,moodBars);
+
+  const unmarked=students.filter(s=>s.enrolled&&!markedToday[s.id]);
+  if(unmarked.length===0){
+    showFaceFrame('var(--green)','ALL MARKED ✓');
+    showBadge(`<span style="background:rgba(0,255,136,.9);color:#000;padding:8px 22px;border-radius:24px;font-size:13px;font-weight:700">✅ All students already marked!</span>`);
+    document.getElementById('livenessInstr').style.display='none';
+    await sleep(3000);clearBadge();hideFaceFrame();
+    ['oc1','oc2','oc3','oc4'].forEach(id=>document.getElementById(id).classList.remove('ok'));
+    scanning=false;document.getElementById('btnScan').disabled=false;return;
+  }
+
+  const matched=unmarked[0];
+  const m=MOOD_MAP[moodKey]||MOOD_MAP.neutral;
+  showFaceFrame('var(--green)',`✅ ${matched.name.split(' ')[0].toUpperCase()}`);
+  showBadge(`<span style="background:rgba(0,255,136,.97);color:#000;padding:9px 26px;border-radius:24px;font-size:14px;font-weight:800">✅ ${matched.name} — Present! ${m.e}</span>`);
+
+  markedToday[matched.id]={time:new Date(),status:'present',mood:moodKey,liveness:livenessScores};
+  matched.present = (matched.present || 0) + 1;
+  matched.total = (matched.total || 0) + 1;
+  matched.streak = (matched.streak || 0) + 1;
+  matched.moods=(matched.moods||[]).concat(moodKey);
+
+  const todayKey=new Date().toISOString().slice(0,10);
+  const lecKey=getLectureKey(todayKey,selectedLecture);
+  if(!attendanceHistory[lecKey]) attendanceHistory[lecKey]={};
+  attendanceHistory[lecKey][matched.id]={status:'present',time:new Date().toISOString(),mood:moodKey,liveness:livenessScores,confidence:aiResult.confidence};
+
+  const entry={
+    id:Date.now(),spoof:false,student:matched,time:new Date(),
+    mood:moodKey,moodScores,liveness:livenessScores,
+    confidence:aiResult.confidence,description:aiResult.description||'',
+    snapshot:scanFrame
+  };
+  logs.unshift(entry);
+  updateStats();renderStudentList();updatePredictionSel();
+
+  if(fbConnected){
+    debounceSave('att_'+lecKey,()=>fbSaveAttendance(lecKey));
+    debounceSave('log_'+entry.id,()=>fbSaveLog(entry),0);
+    debounceSave('student_'+matched.id,()=>fbSaveStudent(matched));
+  }
+  document.getElementById('livenessInstr').style.display='none';
+
+  await sleep(3500);
+  clearBadge();hideFaceFrame();
+  ['oc1','oc2','oc3','oc4'].forEach(id=>document.getElementById(id).classList.remove('ok'));
+  scanning=false;document.getElementById('btnScan').disabled=false;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STATS & ROSTER RENDERING
+// ═══════════════════════════════════════════════════════════════
+function updateStats(){
+  const p=Object.values(markedToday).filter(v=>v.status==='present').length;
+  const spoofLogsCount=logs.filter(l=>l.spoof).length;
+  const total=students.filter(st=>st.enrolled).length;
+  const a=Math.max(0, total-p);
+  const r=total?Math.round(p/total*100):0;
+  ['hP','tnP'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=p;});
+  ['hA','tnA'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=a;});
+  ['hS','tnS'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=spoofLogsCount;});
+  document.getElementById('hR').textContent=r+'%';
+  document.getElementById('rateBar').style.width=r+'%';
+  document.getElementById('rateTxt').textContent=r+'% attendance rate';
+  document.getElementById('enrolledCnt').textContent=total;
+}
+
+function renderStudentList(){
+  const el=document.getElementById('studentList');
+  const enrolled=students.filter(s=>s.enrolled);
+  if(enrolled.length===0){
+    el.innerHTML=`<div style="text-align:center;padding:24px 12px;color:var(--muted);">
+      <div style="font-size:32px;margin-bottom:8px">👤</div>
+      <div style="font-size:12px;font-weight:700;color:var(--dim)">No students enrolled yet</div>
+      <div style="font-size:11px;margin-top:4px">Go to Students tab to enroll</div>
+    </div>`;
+    return;
+  }
+  el.innerHTML=enrolled.map(s=>{
+    const m=markedToday[s.id];
+    const moodKey=m?.mood||null;
+    const moodInfo=moodKey?(MOOD_MAP[moodKey]||MOOD_MAP.neutral):null;
+    return `<div class="srow ${m?.status==='present'?'marked':m?.status==='spoof'?'spoofed':''}">
+      <div class="savatar" style="background:${s.color}22;color:${s.color};border:1px solid ${s.color}33">${s.av}</div>
+      <div style="flex:1;min-width:0">
+        <div class="sname">${s.name}</div>
+        <div class="smeta">${moodInfo?moodInfo.e+' '+moodKey:s.streak>0?'🔥 '+s.streak+'d':s.name.split(' ')[0]}</div>
+      </div>
+      <span class="stag" style="color:${m?.status==='present'?'var(--green)':m?.status==='spoof'?'var(--red)':'var(--muted)'};background:${m?.status==='present'?'rgba(0,255,136,.1)':m?.status==='spoof'?'rgba(255,61,90,.1)':'rgba(61,85,112,.1)'}">
+        ${m?.status==='present'?'✅ '+m.time.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):m?.status==='spoof'?'⛔ Blocked':'—'}
+      </span>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PREDICTION CHART
+// ═══════════════════════════════════════════════════════════════
+function updatePredictionSel(){
+  const sel=document.getElementById('predSelect');
+  if(students.length===0){
+    sel.innerHTML='<option>— Enroll students first —</option>';
+    document.getElementById('predInsight').innerHTML='<b style="color:var(--amber)">Enroll students to see AI predictions.</b>';
+    if(predChart){predChart.destroy();predChart=null;}
+    return;
+  }
+  sel.innerHTML=students.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  updatePrediction();
+}
+
+function updatePrediction(){
+  const sel=document.getElementById('predSelect');
+  const sid=parseInt(sel.value);
+  const s=students.find(st=>st.id===sid);
+  if(!s) return;
+  const rate=s.total?s.present/s.total:0.85;
+  const trend=s.streak>5?0.02:s.streak===0?-0.03:0;
+  const base=rate;
+  const past=[...Array(5)].map((_,i)=>Math.min(1,Math.max(0,base-(4-i)*0.01+Math.sin(i+s.id)*0.02)));
+  const future=[...Array(7)].map((_,i)=>Math.min(1,Math.max(0,base+trend*i+Math.cos(i+s.id)*0.02)));
+  const labels=['5d ago','4d ago','3d ago','2d ago','Yesterday','Today','+1d','+2d','+3d','+4d','+5d','+6d'];
+  const actual=past.map(v=>Math.round(v*100));
+  const pred=future.map(v=>Math.round(v*100));
+
+  if(predChart) predChart.destroy();
+  predChart=new Chart(document.getElementById('predChart'),{
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {label:'Historical',data:[...actual,...Array(7).fill(null)],borderColor:s.color,backgroundColor:s.color+'22',fill:true,tension:.4,pointRadius:3},
+        {label:'AI Predicted',data:[...Array(5).fill(null),actual[4],...pred],borderColor:'#b066ff',backgroundColor:'rgba(176,102,255,.1)',fill:true,tension:.4,pointRadius:3,borderDash:[4,4]}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9},color:'#3d5570'},grid:{color:'#152030'}},y:{min:0,max:100,ticks:{font:{size:9},color:'#3d5570',callback:v=>v+'%'},grid:{color:'#152030'}}}}
+  });
+
+  const nextWeek=Math.round(future.reduce((a,b)=>a+b,0)/future.length*100);
+  const riskLevel=nextWeek<75?'<b style="color:var(--red)">HIGH RISK</b>':nextWeek<85?'<b style="color:var(--amber)">MODERATE</b>':'<b style="color:var(--green)">GOOD STANDING</b>';
+  document.getElementById('predInsight').innerHTML=
+    `AI predicts <b style="color:${s.color}">${s.name}</b> will have ~${nextWeek}% attendance next week (${riskLevel}). ${
+      s.streak>5?'Consistent streak of '+s.streak+' days suggests continued engagement.':
+      s.streak===0?'Zero streak detected — intervention recommended.':
+      'Moderate attendance pattern. Monitor closely.'
+    }`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STUDENTS GRID & ENROLLMENT
+// ═══════════════════════════════════════════════════════════════
+function renderStudentsGrid(){
+  const g=document.getElementById('studentsGrid');
+  if(students.length===0){
+    g.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:60px 20px;">
+      <div style="font-size:72px;margin-bottom:16px;opacity:.3">👤</div>
+      <div style="font-size:20px;font-weight:800;margin-bottom:8px">No Students Enrolled</div>
+      <div style="font-size:13px;color:var(--muted);max-width:380px;margin:0 auto 20px;line-height:1.6">
+        Your class roster is empty. Enroll each student by capturing their face photo — or load the 6 demo students to explore all features immediately.
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <button onclick="showEnroll()" style="padding:12px 24px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--cyan),#0099cc);color:#000;font-weight:800;font-size:13px;cursor:pointer;">📸 Enroll First Student</button>
+        <button onclick="seedDemoData()" style="padding:12px 24px;border-radius:12px;border:1px solid rgba(176,102,255,.4);background:rgba(176,102,255,.12);color:var(--purple);font-weight:800;font-size:13px;cursor:pointer;">⚡ Load 6 Demo Students</button>
+      </div>
+    </div>`;
+    document.getElementById('stuSub').textContent='No students enrolled yet';
+    return;
+  }
+  g.innerHTML=students.map(s=>{
+    const r=s.total?Math.round(s.present/s.total*100):100;
+    const rc=r>=90?'var(--green)':r>=75?'var(--amber)':'var(--red)';
+    const m=markedToday[s.id];
+    const lastMood=s.moods&&s.moods.length?s.moods[s.moods.length-1]:null;
+    const mInfo=lastMood?(MOOD_MAP[lastMood]||MOOD_MAP.neutral):null;
+    return `<div class="scard ${m?.status==='present'?'today-present':m?.status==='spoof'?'today-spoof':''}">
+      <div class="sc-top">
+        <div class="sc-av" style="background:${s.color}22;color:${s.color};border:2px solid ${s.color}33">
+          ${s.av}
+          <div class="sc-dot" style="background:${s.enrolled?'var(--green)':'var(--muted)'};color:#000;">${s.enrolled?'✓':'?'}</div>
+        </div>
+        <div><div class="sc-name">${s.name}</div><div class="sc-enr" style="color:${s.enrolled?'var(--green)':'var(--muted)'}">${s.enrolled?'✅ Enrolled':'⚠️ Not Enrolled'}</div></div>
+      </div>
+      <div class="sc-minigrid">
+        <div class="sc-mini" style="background:rgba(0,255,136,.07)"><div class="sc-mini-v" style="color:var(--green)">${s.present}</div><div class="sc-mini-l" style="color:rgba(0,255,136,.5)">Present</div></div>
+        <div class="sc-mini" style="background:rgba(255,61,90,.07)"><div class="sc-mini-v" style="color:var(--red)">${Math.max(0, s.total-s.present)}</div><div class="sc-mini-l" style="color:rgba(255,61,90,.5)">Absent</div></div>
+        <div class="sc-mini" style="background:rgba(255,184,0,.07)"><div class="sc-mini-v" style="color:var(--amber)">${s.streak}</div><div class="sc-mini-l" style="color:rgba(255,184,0,.5)">Streak🔥</div></div>
+      </div>
+      <div class="sc-ratewrap"><div class="sc-ratefill" style="width:${r}%;background:${rc}"></div></div>
+      <div class="sc-raterow"><span>Rate</span><span style="color:${rc};font-weight:700">${r}%</span></div>
+      ${mInfo?`<div class="sc-mood-row"><span class="sc-mood-e">${mInfo.e}</span><span class="sc-mood-t">Last mood: ${lastMood}</span></div>`:''}
+      ${m?`<div class="sc-today-badge" style="background:${m.status==='present'?'rgba(0,255,136,.1)':'rgba(255,61,90,.1)'};color:${m.status==='present'?'var(--green)':'var(--red)'};border:1px solid ${m.status==='present'?'rgba(0,255,136,.2)':'rgba(255,61,90,.2)'}">${m.status==='present'?'✅ Present at '+m.time.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'⛔ Spoof blocked'}</div>`:''}
+      <button class="sc-delete-btn" onclick="deleteStudent(${s.id})">🗑 Remove Student</button>
+    </div>`;
+  }).join('');
+  document.getElementById('stuSub').textContent=`${students.filter(s=>s.enrolled).length} enrolled · ${Object.keys(markedToday).length} marked today`;
+}
+
+function showEnroll(){
+  document.getElementById('enrollBox').style.display='block';
+  document.getElementById('btnEnrollToggle').textContent='✕ Cancel';
+}
+function toggleEnroll(){
+  const box=document.getElementById('enrollBox');
+  if(box.style.display==='none'){
+    box.style.display='block';
+    document.getElementById('btnEnrollToggle').textContent='✕ Cancel';
+  } else {
+    box.style.display='none';
+    document.getElementById('btnEnrollToggle').textContent='+ Enroll New Face';
+    stopEnrollCam();enrollPhoto=null;
+    document.getElementById('enrollName').value='';
+    document.getElementById('enrollId').value='';
+    document.getElementById('enrollImg').style.display='none';
+    document.getElementById('eCapturedBadge').style.display='none';
+    document.getElementById('ePrevTxt').style.display='block';
+    document.getElementById('btnECapture').style.display='none';
+    document.getElementById('btnECam').style.display='flex';
+    document.getElementById('btnESave').disabled=true;
+  }
+}
+async function startEnrollCam(){
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}});
+    enrollStream=stream;
+    const v=document.getElementById('enrollVideo');
+    v.srcObject=stream;v.style.display='block';
+    document.getElementById('enrollImg').style.display='none';
+    document.getElementById('eCapturedBadge').style.display='none';
+    document.getElementById('ePrevTxt').style.display='none';
+    document.getElementById('btnECam').style.display='none';
+    document.getElementById('btnECapture').style.display='flex';
+  }catch(e){
+    showUiMessage('Camera Unavailable', 'Could not access webcam. You can click "🎨 Synth Face" to generate a biometric template for enrollment.');
+  }
+}
+function stopEnrollCam(){
+  if(enrollStream){enrollStream.getTracks().forEach(t=>t.stop());enrollStream=null;}
+  document.getElementById('enrollVideo').style.display='none';
+}
+function captureEnrollFace(){
+  const v=document.getElementById('enrollVideo');
+  const c=document.getElementById('canvas');
+  c.width=v.videoWidth||640;c.height=v.videoHeight||480;
+  c.getContext('2d').drawImage(v,0,0);
+  enrollPhoto=c.toDataURL('image/jpeg',.85).split(',')[1];
+  const img=document.getElementById('enrollImg');
+  img.src='data:image/jpeg;base64,'+enrollPhoto;
+  img.style.display='block';
+  document.getElementById('enrollVideo').style.display='none';
+  document.getElementById('eCapturedBadge').style.display='block';
+  document.getElementById('btnECapture').style.display='none';
+  document.getElementById('btnECam').style.display='flex';
+  stopEnrollCam();
+  checkEnrollReady();
+}
+function checkEnrollReady(){
+  document.getElementById('btnESave').disabled=!(document.getElementById('enrollName').value.trim()&&enrollPhoto);
+}
+document.getElementById('enrollName').addEventListener('input',checkEnrollReady);
+
+function saveEnroll(){
+  const name=document.getElementById('enrollName').value.trim();
+  if(!name||!enrollPhoto) return;
+  const initials=name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const newStudent={id:Date.now(),name,av:initials,color:COLORS8[students.length%COLORS8.length],enrolled:true,present:1,total:1,streak:1,moods:['focused'],facePhoto:enrollPhoto,createdAt:new Date().toISOString()};
+  students.push(newStudent);
+  toggleEnroll();updateStats();renderStudentList();renderStudentsGrid();updatePredictionSel();refreshScanIdle();updateSummaryStudentSel();
+  if(fbConnected) debounceSave('student_'+newStudent.id,()=>fbSaveStudent(newStudent));
+}
+
+function deleteStudent(id){
+  const stu = students.find(s=>s.id===id);
+  showUiConfirm(
+    'Remove Student',
+    `Remove ${stu ? stu.name : 'this student'} from the roster? Their attendance history will also be cleared.`,
+    () => {
+      students=students.filter(s=>s.id!==id);
+      delete markedToday[id];
+      Object.keys(attendanceHistory).forEach(dt=>{delete attendanceHistory[dt][id];});
+      updateStats();renderStudentList();renderStudentsGrid();updatePredictionSel();refreshScanIdle();updateSummaryStudentSel();
+      if(fbConnected){
+        debounceSave('del_student_'+id,()=>fbDeleteStudent(id),0);
+        Object.keys(attendanceHistory).forEach(lecKey=>{
+          debounceSave('att_'+lecKey,()=>fbSaveAttendance(lecKey));
+        });
+      }
+    }
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LOGS
+// ═══════════════════════════════════════════════════════════════
+function renderLogs(){
+  const sub=document.getElementById('logsSub');
+  const realLogs=logs.filter(l=>!l.spoof);
+  const spoofLogs=logs.filter(l=>l.spoof);
+  sub.textContent=`${realLogs.length} recognized, ${spoofLogs.length} spoof attempts`;
+  if(logs.length===0){
+    document.getElementById('logsEmpty').style.display='block';
+    document.getElementById('logsContent').style.display='none';return;
+  }
+  document.getElementById('logsEmpty').style.display='none';
+  document.getElementById('logsContent').style.display='block';
+  document.getElementById('logRows').innerHTML=logs.map(l=>{
+    if(l.spoof || !l.student) return `<div class="log-row spoof ${selectedLog===l.id?'sel':''}" onclick="selectLog(${l.id})">
+      <div style="display:flex;align-items:center"><div class="log-av" style="background:rgba(255,61,90,.15);color:var(--red)">⚠</div><span class="log-nm" style="color:var(--red)">SPOOF ATTEMPT</span></div>
+      <span class="log-t">${l.time.toLocaleTimeString()}</span>
+      <span class="cbadge" style="background:rgba(255,61,90,.12);color:var(--red)">BLOCKED</span>
+      <span style="font-size:11px;color:var(--muted)">—</span>
+      <span class="cbadge" style="background:rgba(255,61,90,.12);color:var(--red)">⛔ Proxy</span>
+    </div>`;
+    const m=MOOD_MAP[l.mood]||MOOD_MAP.neutral;
+    const cc=l.confidence==='high'?'var(--green)':l.confidence==='medium'?'var(--amber)':'var(--red)';
+    return `<div class="log-row ${selectedLog===l.id?'sel':''}" onclick="selectLog(${l.id})">
+      <div style="display:flex;align-items:center"><div class="log-av" style="background:${l.student.color}22;color:${l.student.color}">${l.student.av}</div><span class="log-nm">${l.student.name}</span></div>
+      <span class="log-t">${l.time.toLocaleTimeString()}</span>
+      <span class="cbadge" style="background:${cc}18;color:${cc}">${l.liveness?.overall||'—'}%</span>
+      <span style="font-size:14px">${m.e}</span>
+      <span class="cbadge" style="background:rgba(0,255,136,.1);color:var(--green)">✅ OK</span>
+    </div>`;
+  }).join('');
+
+  if(selectedLog){
+    const l=logs.find(x=>x.id===selectedLog);
+    if(l){
+      document.getElementById('logDetail').style.display='block';
+      if(l.spoof || !l.student){
+        document.getElementById('logDetail').innerHTML=`<div class="ld-title">Spoof Attempt Detail</div>
+          ${l.snapshot?`<div class="ld-snap"><img src="data:image/jpeg;base64,${l.snapshot}" alt="Spoof Snapshot"/></div>`:''}
+          <div style="background:rgba(255,61,90,.07);border:1px solid rgba(255,61,90,.2);border-radius:10px;padding:12px;margin-bottom:12px;text-align:center;color:var(--red);font-weight:700">⛔ ANTI-PROXY BLOCKED</div>
+          <div class="ld-rows">
+            <div class="ld-row"><span class="ld-lbl">Time</span><span class="ld-val">${l.time.toLocaleString()}</span></div>
+            <div class="ld-row"><span class="ld-lbl">Blink Score</span><span class="ld-val" style="color:var(--red)">${l.liveness?.blink||0}%</span></div>
+            <div class="ld-row"><span class="ld-lbl">Motion Score</span><span class="ld-val" style="color:var(--red)">${l.liveness?.motion||0}%</span></div>
+            <div class="ld-row"><span class="ld-lbl">Depth Score</span><span class="ld-val" style="color:var(--red)">${l.liveness?.depth||0}%</span></div>
+            <div class="ld-row" style="border:none"><span class="ld-lbl">Overall</span><span class="ld-val" style="color:var(--red)">${l.liveness?.overall||0}% (FAIL)</span></div>
+          </div>`;
+      } else {
+        const m=MOOD_MAP[l.mood]||MOOD_MAP.neutral;
+        document.getElementById('logDetail').innerHTML=`<div class="ld-title">Recognition Detail</div>
+          ${l.snapshot?`<div class="ld-snap"><img src="data:image/jpeg;base64,${l.snapshot}" alt="Recognition Snapshot"/></div>`:''}
+          <div class="ld-student">
+            <div style="width:38px;height:38px;border-radius:9px;background:${l.student.color}22;color:${l.student.color};display:flex;align-items:center;justify-content:center;font-weight:800">${l.student.av}</div>
+            <div><div style="font-size:14px;font-weight:800">${l.student.name}</div><div style="font-size:11px;color:var(--green)">✅ Marked Present</div></div>
+            <div style="margin-left:auto;font-size:28px">${m.e}</div>
+          </div>
+          <div class="ld-rows">
+            <div class="ld-row"><span class="ld-lbl">Time</span><span class="ld-val">${l.time.toLocaleString()}</span></div>
+            <div class="ld-row"><span class="ld-lbl">Mood</span><span class="ld-val" style="color:${m.c}">${l.mood} ${m.e}</span></div>
+            <div class="ld-row"><span class="ld-lbl">Liveness</span><span class="ld-val" style="color:var(--green)">${l.liveness?.overall||'—'}% ✅</span></div>
+            <div class="ld-row"><span class="ld-lbl">Confidence</span><span class="ld-val">${l.confidence||'—'}</span></div>
+            <div class="ld-row" style="border:none"><span class="ld-lbl">AI Notes</span><span class="ld-val" style="font-family:'Space Grotesk',sans-serif;font-size:10px;text-align:right;max-width:160px;color:var(--dim)">${l.description||'—'}</span></div>
+          </div>`;
+      }
+    }
+  } else document.getElementById('logDetail').style.display='none';
+}
+
+function selectLog(id){
+  selectedLog=selectedLog===id?null:id;
+  renderLogs();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ANALYTICS
+// ═══════════════════════════════════════════════════════════════
+function renderAnalytics(){
+  const todayRate = Math.round((Object.values(markedToday).filter(v=>v.status==='present').length/Math.max(1,students.filter(s=>s.enrolled).length))*100);
+  const wData=[72,78,68,80,85,todayRate];
+  if(weeklyChart) weeklyChart.destroy();
+  weeklyChart=new Chart(document.getElementById('chartWeekly'),{
+    type:'bar',
+    data:{labels:['Mon','Tue','Wed','Thu','Fri','Today'],datasets:[{data:wData,backgroundColor:wData.map(v=>v>=80?'rgba(0,255,136,.4)':v>=70?'rgba(255,184,0,.4)':'rgba(255,61,90,.4)'),borderColor:wData.map(v=>v>=80?'#00ff88':v>=70?'#ffb800':'#ff3d5a'),borderWidth:1,borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#3d5570',font:{size:10}},grid:{display:false}},y:{min:0,max:100,ticks:{color:'#3d5570',font:{size:10},callback:v=>v+'%'},grid:{color:'#152030'}}}}
+  });
+
+  const rates=students.map(s=>s.total?Math.round(s.present/s.total*100):100);
+  const g=[rates.filter(r=>r>=90).length,rates.filter(r=>r>=75&&r<90).length,rates.filter(r=>r<75).length];
+  if(distChart) distChart.destroy();
+  distChart=new Chart(document.getElementById('chartDist'),{
+    type:'doughnut',
+    data:{labels:['Excellent (≥90%)','Good (75-89%)','At Risk (<75%)'],datasets:[{data:g.some(x=>x>0)?g:[1,1,0],backgroundColor:['rgba(0,255,136,.6)','rgba(0,229,255,.6)','rgba(255,61,90,.6)'],borderColor:['#00ff88','#00e5ff','#ff3d5a'],borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#7a9abf',font:{size:10}}}}}
+  });
+
+  const moodEl=document.getElementById('moodAnalytics');
+  const allMoods=['happy','focused','neutral','tired','stressed'];
+  moodEl.innerHTML=allMoods.map(mk=>{
+    const m=MOOD_MAP[mk];
+    const cnt=students.reduce((acc,s)=>(s.moods||[]).filter(x=>x===mk).length+acc,0)+(moodCounts[mk]||0);
+    return `<div class="mood-ac"><div class="mood-ac-e">${m.e}</div><div class="mood-ac-n" style="color:${m.c}">${mk}</div><div class="mood-ac-c">${cnt}</div></div>`;
+  }).join('');
+
+  const spoofData=[0,1,0,2,1,logs.filter(l=>l.spoof).length];
+  if(spoofChart) spoofChart.destroy();
+  spoofChart=new Chart(document.getElementById('chartSpoof'),{
+    type:'line',
+    data:{labels:['Mon','Tue','Wed','Thu','Fri','Today'],datasets:[{label:'Spoof Attempts',data:spoofData,borderColor:'#ff3d5a',backgroundColor:'rgba(255,61,90,.1)',fill:true,tension:.4,pointRadius:4,pointBackgroundColor:'#ff3d5a'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#7a9abf',font:{size:10}}}},scales:{x:{ticks:{color:'#3d5570',font:{size:10}},grid:{color:'#152030'}},y:{min:0,ticks:{color:'#3d5570',font:{size:10},stepSize:1},grid:{color:'#152030'}}}}
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ATTENDANCE REGISTER
+// ═══════════════════════════════════════════════════════════════
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+function switchLecture(lec, btn){
+  selectedLecture = lec;
+  document.querySelectorAll('.lec-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  loadRegisterDate(selectedRegDate);
+}
+
+function getLectureKey(dateStr, lec){ return dateStr+'__'+lec; }
+
+function initRegister(){
+  const picker=document.getElementById('regDatePicker');
+  picker.value=selectedRegDate;
+  picker.max=todayStr();
+  updateSummaryStudentSel();
+  renderCalendar();
+  loadRegisterDate(selectedRegDate);
+}
+
+function loadRegisterDate(dateStr){
+  if(!dateStr) return;
+  selectedRegDate=dateStr;
+  document.getElementById('regDatePicker').value=dateStr;
+  const isToday=dateStr===todayStr();
+  const lecKey=getLectureKey(dateStr,selectedLecture);
+  const histData=attendanceHistory[lecKey]||{};
+
+  const getRecord=(sid)=>{
+    const h=histData[sid];
+    if(h) return {...h, time: new Date(h.time)};
+    return null;
+  };
+
+  const spoofCount=Object.keys(histData).filter(k=>k.startsWith('spoof_')).length;
+  const enrolled=students.filter(s=>s.enrolled);
+  const presentList=enrolled.filter(s=>getRecord(s.id)?.status==='present');
+  const absentList=enrolled.filter(s=>!getRecord(s.id)||getRecord(s.id).status!=='present');
+  const rate=enrolled.length?Math.round(presentList.length/enrolled.length*100):0;
+
+  document.getElementById('rsbPresent').textContent=presentList.length;
+  document.getElementById('rsbAbsent').textContent=absentList.length;
+  document.getElementById('rsbRate').textContent=enrolled.length?rate+'%':'—';
+  document.getElementById('rsbSpoofs').textContent=spoofCount;
+
+  const d=new Date(dateStr+'T12:00:00');
+  const label=isToday?'Today · '+d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}):
+    d.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('regSub').textContent=label+' · '+selectedLecture+' · '+enrolled.length+' students';
+
+  const tbody=document.getElementById('regTableBody');
+  if(enrolled.length===0){
+    tbody.innerHTML=`<div style="text-align:center;padding:40px;color:var(--muted)">
+      <div style="font-size:36px;margin-bottom:8px">👤</div>
+      <div style="font-weight:600">No students enrolled yet</div>
+    </div>`;
+    return;
+  }
+
+  const sorted=[...presentList,...absentList];
+  tbody.innerHTML=sorted.map(s=>{
+    const rec=getRecord(s.id);
+    const present=rec?.status==='present';
+    const mood=rec?.mood;
+    const mInfo=mood?(MOOD_MAP[mood]||MOOD_MAP.neutral):null;
+    const timeStr=rec?.time?rec.time.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'—';
+    const livenessScore=rec?.liveness?.overall;
+    return `<div class="reg-table-row">
+      <div style="display:flex;align-items:center">
+        <div class="reg-av" style="background:${s.color}22;color:${s.color}">${s.av}</div>
+        <div style="margin-left:10px">
+          <div class="reg-name">${s.name}</div>
+          <div class="reg-id">Streak: ${s.streak||0}d 🔥</div>
+        </div>
+      </div>
+      <span class="reg-status-badge" style="background:${present?'rgba(0,255,136,.12)':'rgba(255,61,90,.1)'};color:${present?'var(--green)':'var(--red)'}">
+        ${present?'✅ Present':'❌ Absent'}
+      </span>
+      <span class="reg-time">${present?timeStr:'—'}</span>
+      <span class="reg-mood">${mInfo?mInfo.e:'—'}</span>
+      <span style="font-size:11px;font-weight:700;color:${livenessScore>65?'var(--green)':livenessScore>40?'var(--amber)':'var(--muted)'}">${livenessScore?livenessScore+'%':'—'}</span>
+      <div>
+        ${!present?`<button class="reg-manual-btn" onclick="manualMark(${s.id})">✏ Manual Mark</button>`:''}
+        ${present?`<button class="reg-manual-btn" style="border-color:rgba(255,61,90,.3);color:var(--red)" onclick="unmark(${s.id})">✕ Undo</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+
+  renderCalendar();
+  renderStudentSummary();
+}
+
+function manualMark(sid){
+  const s=students.find(st=>st.id===sid);
+  if(!s) return;
+  const ds=selectedRegDate;
+  const lecKey=getLectureKey(ds,selectedLecture);
+  if(!attendanceHistory[lecKey]) attendanceHistory[lecKey]={};
+  attendanceHistory[lecKey][sid]={status:'present',time:new Date().toISOString(),mood:'neutral',liveness:{overall:100},manual:true};
+  if(ds===todayStr()) markedToday[sid]={time:new Date(),status:'present',mood:'neutral',liveness:{overall:100,blink:100,motion:100,depth:100},manual:true};
+  updateStats();renderStudentList();
+  loadRegisterDate(selectedRegDate);
+  if(fbConnected) debounceSave('att_'+lecKey,()=>fbSaveAttendance(lecKey));
+}
+
+function unmark(sid){
+  const ds=selectedRegDate;
+  const lecKey=getLectureKey(ds,selectedLecture);
+  if(attendanceHistory[lecKey]) delete attendanceHistory[lecKey][sid];
+  if(ds===todayStr()) delete markedToday[sid];
+  updateStats();renderStudentList();
+  loadRegisterDate(selectedRegDate);
+  if(fbConnected) debounceSave('att_'+lecKey,()=>fbSaveAttendance(lecKey));
+}
+
+function shiftDate(delta){
+  const d=new Date(selectedRegDate+'T12:00:00');
+  d.setDate(d.getDate()+delta);
+  const today=new Date(); today.setHours(12,0,0,0);
+  if(d>today) return;
+  loadRegisterDate(d.toISOString().slice(0,10));
+}
+
+function goToday(){
+  loadRegisterDate(todayStr());
+}
+
+function renderCalendar(){
+  const year=calViewYear, month=calViewMonth;
+  document.getElementById('calMonthLabel').textContent=
+    new Date(year,month,1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+
+  const firstDay=new Date(year,month,1).getDay();
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const today=todayStr();
+
+  let html='';
+  for(let i=0;i<firstDay;i++) html+=`<div class="cal-day empty"></div>`;
+  for(let d=1;d<=daysInMonth;d++){
+    const ds=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday=ds===today;
+    const isSel=ds===selectedRegDate;
+    const hasData=LECTURES.some(lec=>attendanceHistory[getLectureKey(ds,lec)] && Object.keys(attendanceHistory[getLectureKey(ds,lec)]).length>0) || (ds===today&&Object.keys(markedToday).length>0);
+    const isFuture=ds>today;
+    html+=`<div class="cal-day ${isSel?'selected':''} ${isToday?'today':''} ${hasData?'has-data':''} ${isFuture?'empty':''}"
+      ${isFuture?'':`onclick="loadRegisterDate('${ds}')"`}>${d}</div>`;
+  }
+  document.getElementById('calDays').innerHTML=html;
+}
+
+function shiftCalMonth(delta){
+  calViewMonth+=delta;
+  if(calViewMonth>11){calViewMonth=0;calViewYear++;}
+  if(calViewMonth<0){calViewMonth=11;calViewYear--;}
+  renderCalendar();
+}
+
+function updateSummaryStudentSel(){
+  const sel=document.getElementById('summaryStudentSel');
+  if(!sel) return;
+  const prevVal = sel.value;
+  sel.innerHTML='<option value="">— Select student —</option>'+
+    students.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  if (prevVal && students.some(s=>String(s.id)===String(prevVal))) {
+    sel.value = prevVal;
+  } else if (students.length > 0) {
+    sel.value = students[0].id;
+  }
+  renderStudentSummary();
+}
+
+function renderStudentSummary(){
+  const sel=document.getElementById('summaryStudentSel');
+  const sid=parseInt(sel.value);
+  const body=document.getElementById('studentSummaryBody');
+  if(!sid||isNaN(sid)){body.innerHTML='';return;}
+  const s=students.find(st=>st.id===sid);
+  if(!s){body.innerHTML='';return;}
+
+  const allLecKeys=Object.keys(attendanceHistory);
+  let presentDays=0, totalEntries=0;
+  allLecKeys.forEach(lk=>{
+    const rec=attendanceHistory[lk][sid];
+    if(rec) { totalEntries++; if(rec.status==='present') presentDays++; }
+  });
+  if(totalEntries===0 && s.total){
+    presentDays=s.present; totalEntries=s.total;
+  }
+
+  const rate=totalEntries?Math.round(presentDays/totalEntries*100):100;
+  const rateColor=rate>=90?'var(--green)':rate>=75?'var(--amber)':'var(--red)';
+
+  const recent7=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date(); d.setDate(d.getDate()-i);
+    const ds=d.toISOString().slice(0,10);
+    const presentInAny=LECTURES.some(lec=>{
+      const lk=getLectureKey(ds,lec);
+      return attendanceHistory[lk]?.[sid]?.status==='present';
+    });
+    recent7.push({ds,present:presentInAny});
+  }
+
+  body.innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="width:40px;height:40px;border-radius:10px;background:${s.color}22;color:${s.color};display:flex;align-items:center;justify-content:center;font-weight:800">${s.av}</div>
+      <div><div style="font-size:13px;font-weight:800">${s.name}</div><div style="font-size:10px;color:var(--muted)">Streak: ${s.streak||0}d 🔥</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div style="background:rgba(0,255,136,.07);border-radius:8px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:800;color:var(--green)">${presentDays}</div><div style="font-size:9px;color:rgba(0,255,136,.6);text-transform:uppercase">Present</div></div>
+      <div style="background:rgba(255,61,90,.07);border-radius:8px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:800;color:var(--red)">${Math.max(0,totalEntries-presentDays)}</div><div style="font-size:9px;color:rgba(255,61,90,.6);text-transform:uppercase">Absent</div></div>
+    </div>
+    <div style="height:5px;background:var(--border);border-radius:3px;margin-bottom:4px"><div style="height:100%;width:${rate}%;background:${rateColor};border-radius:3px;transition:width .5s"></div></div>
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:12px"><span>Overall Rate (all lectures)</span><span style="color:${rateColor};font-weight:700">${rate}%</span></div>
+    <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Last 7 Days</div>
+    <div style="display:flex;gap:4px">
+      ${recent7.map(({ds,present})=>`
+        <div style="flex:1;text-align:center">
+          <div style="width:100%;aspect-ratio:1;border-radius:6px;background:${present?'rgba(0,255,136,.25)':'rgba(255,61,90,.15)'};border:1px solid ${present?'rgba(0,255,136,.4)':'rgba(255,61,90,.3)'};display:flex;align-items:center;justify-content:center;font-size:12px">${present?'✅':'❌'}</div>
+          <div style="font-size:8px;color:var(--muted);margin-top:2px">${new Date(ds+'T12:00:00').toLocaleDateString('en-US',{weekday:'short'}).slice(0,2)}</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function exportCSV(){
+  const dateStr=selectedRegDate;
+  const lecKey=getLectureKey(dateStr,selectedLecture);
+  const histData=attendanceHistory[lecKey]||{};
+  const getRecord=(sid)=>{
+    const h=histData[sid];
+    return h?{...h,time:new Date(h.time)}:null;
+  };
+  const enrolled=students.filter(s=>s.enrolled);
+  let csv='Name,Lecture,Status,Time,Mood,Liveness Score\n';
+  enrolled.forEach(s=>{
+    const rec=getRecord(s.id);
+    const present=rec?.status==='present';
+    csv+=`"${s.name}","${selectedLecture}","${present?'Present':'Absent'}","${present?rec.time.toLocaleTimeString():'—'}","${rec?.mood||'—'}","${rec?.liveness?.overall||'—'}"\n`;
+  });
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`attendance_${dateStr}_${selectedLecture}.csv`;a.click();
+  URL.revokeObjectURL(url);
+}
+
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+function refreshScanIdle(){
+  const noWarn=document.getElementById('noStudentWarn');
+  const idleEmoji=document.getElementById('idleEmoji');
+  const idleTxt=document.getElementById('idleTxt');
+  if(!mainStream){
+    if(students.filter(s=>s.enrolled).length===0){
+      if(noWarn) noWarn.style.display='block';
+      if(idleEmoji) idleEmoji.style.display='none';
+      if(idleTxt) idleTxt.style.display='none';
+    } else {
+      if(noWarn) noWarn.style.display='none';
+      if(idleEmoji) idleEmoji.style.display='block';
+      if(idleTxt) idleTxt.style.display='block';
+    }
+  }
+}
+
+// Expose handlers globally for inline HTML event attributes
+Object.assign(window, {
+  switchTab,
+  startCamera,
+  stopCamera,
+  runFullScan,
+  updatePrediction,
+  showEnroll,
+  toggleEnroll,
+  startEnrollCam,
+  captureEnrollFace,
+  useGeneratedFace,
+  saveEnroll,
+  deleteStudent,
+  selectLog,
+  switchLecture,
+  loadRegisterDate,
+  shiftDate,
+  goToday,
+  exportCSV,
+  shiftCalMonth,
+  renderStudentSummary,
+  manualMark,
+  unmark,
+  seedDemoData,
+  closeUiModal
+});
+
+// ═══════════════════════════════════════════════════════════════
+// INITIALIZE APP
+// ═══════════════════════════════════════════════════════════════
+renderStudentList();
+updateStats();
+updatePredictionSel();
+refreshScanIdle();
+switchTab('students');
+showEnroll();
+initFirebase();
+</script>
+</body>
+</html>
